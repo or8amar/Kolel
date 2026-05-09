@@ -1,0 +1,72 @@
+insert into public.app_admins (email)
+values ('turgnr7@gmail.com')
+on conflict (email) do nothing;
+
+with inserted_contacts as (
+  insert into public.contacts ("externalContactId", "fullName", phones, email, source)
+  values
+    ('ext-1001', 'אהרון לוי', array['+972-50-1234567'], 'aharon@example.com', 'manual'),
+    ('ext-1002', 'משה כהן', array['+972-54-2345678'], 'moshe@example.com', 'csv'),
+    ('ext-1003', 'דוד מזרחי', array['+972-52-3456789'], 'david@example.com', 'vcf'),
+    ('ext-1004', 'שרה בן דוד', array['+972-53-1111111'], 'sara@example.com', 'browser_contacts'),
+    ('ext-1005', 'יואב פרידמן', array['+972-58-2222222'], 'yoav@example.com', 'manual')
+  returning id, "fullName"
+)
+insert into public.payment_potentials ("contactId", status, priority, notes, "nextFollowUpAt")
+select
+  id,
+  case
+    when "fullName" = 'אהרון לוי' then 'new_potential'::public.potential_status
+    when "fullName" = 'משה כהן' then 'paying_active'::public.potential_status
+    when "fullName" = 'דוד מזרחי' then 'contacted'::public.potential_status
+    when "fullName" = 'שרה בן דוד' then 'not_interested'::public.potential_status
+    else 'lapsed_payer'::public.potential_status
+  end,
+  case
+    when "fullName" = 'אהרון לוי' then 5
+    when "fullName" = 'דוד מזרחי' then 4
+    else 2
+  end,
+  case
+    when "fullName" = 'אהרון לוי' then 'דורש פגישת המשך'
+    when "fullName" = 'דוד מזרחי' then 'מעוניין לשמוע על מסלול שנתי'
+    when "fullName" = 'יואב פרידמן' then 'משלם לשעבר שנעצר לפני 6 חודשים'
+    else null
+  end,
+  now() + interval '3 day'
+from inserted_contacts;
+
+insert into public.donations ("contactId", amount, currency, type, "paidAt", "enteredBy")
+select id, 250.00, 'ILS', 'one_time', now() - interval '10 day', 'turgnr7@gmail.com'
+from public.contacts
+where "fullName" = 'אהרון לוי';
+
+insert into public.donations ("contactId", amount, currency, type, "paidAt", "enteredBy")
+select id, 180.00, 'ILS', 'recurring', now() - interval '2 day', 'turgnr7@gmail.com'
+from public.contacts
+where "fullName" = 'משה כהן';
+
+insert into public.donations ("contactId", amount, currency, type, "paidAt", "enteredBy")
+select id, 1200.00, 'ILS', 'one_time', now() - interval '45 day', 'turgnr7@gmail.com'
+from public.contacts
+where "fullName" = 'שרה בן דוד';
+
+insert into public.donation_plans ("contactId", frequency, "startDate", "endDate", "amountPerCycle", "isActive")
+select id, 'monthly', current_date - interval '90 day', null, 180.00, true
+from public.contacts
+where "fullName" = 'משה כהן';
+
+insert into public.donation_plans ("contactId", frequency, "startDate", "endDate", "amountPerCycle", "isActive")
+select id, 'yearly', current_date - interval '300 day', current_date - interval '10 day', 2400.00, false
+from public.contacts
+where "fullName" = 'יואב פרידמן';
+
+insert into public.status_history ("contactId", "fromStatus", "toStatus", "changedAt", reason)
+select id, null, 'new_potential', now() - interval '30 day', 'יצירה ראשונית'
+from public.contacts
+where "fullName" = 'אהרון לוי';
+
+insert into public.status_history ("contactId", "fromStatus", "toStatus", "changedAt", reason)
+select id, 'contacted', 'paying_active', now() - interval '20 day', 'הצטרף למסלול חודשי'
+from public.contacts
+where "fullName" = 'משה כהן';
