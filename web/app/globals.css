@@ -2,21 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: "Segoe UI", Tahoma, sans-serif;
-  background: #f1f5f9;
-  color: #0f172a;
-  -webkit-tap-highlight-color: transparent;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-@supports (padding: max(0px)) {
+@layer base {
   body {
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
+    @apply bg-cream text-ink antialiased;
+    margin: 0;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+
+  @supports (padding: max(0px)) {
+    body {
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
+  }
+}
+
+@layer components {
+  .ep-card {
+    @apply rounded-ep border border-line bg-white p-4 shadow-ep;
+  }
+
+  .ep-link {
+    @apply font-medium text-navy hover:text-navy-light;
+  }
+
+  .ep-kpi {
+    @apply rounded-ep border border-line bg-white p-4 shadow-ep;
+  }
+
+  .ep-kpi-label {
+    @apply text-sm text-ink-mid;
+  }
+
+  .ep-kpi-value {
+    @apply text-xl font-bold text-ink md:text-2xl;
   }
 }

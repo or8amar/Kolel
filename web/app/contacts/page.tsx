@@ -91,44 +91,44 @@ export default function ContactsPage() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-xl font-bold">אנשי קשר</h2>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-ink-mid">
                 רשימת כל אנשי הקשר במערכת. לניהול סטטוס ומעקב —{" "}
-                <Link href="/potentials" className="text-indigo-600 hover:text-indigo-500">
+                <Link href="/potentials" className="text-navy hover:text-navy-light">
                   עמוד הפוטנציאלים
                 </Link>
                 .
               </p>
             </div>
             <div className="flex gap-3 text-sm">
-              <Link href="/contacts/add" className="text-indigo-600 hover:text-indigo-500">
+              <Link href="/contacts/add" className="text-navy hover:text-navy-light">
                 הוספת איש קשר
               </Link>
-              <Link href="/import" className="text-indigo-600 hover:text-indigo-500">
+              <Link href="/import" className="text-navy hover:text-navy-light">
                 ייבוא
               </Link>
             </div>
           </div>
 
-          {loading ? <p className="rounded-lg bg-slate-50 p-4 text-slate-600">טוען אנשי קשר...</p> : null}
+          {loading ? <p className="rounded-lg bg-cream p-4 text-ink-mid">טוען אנשי קשר...</p> : null}
 
           <ul className="grid gap-3 md:hidden">
             {rows.map((row) => (
               <li key={row.id} className="rounded-xl border bg-white p-4 shadow-sm">
                 <div className="mb-2 flex items-start justify-between gap-2">
-                  <p className="font-semibold text-slate-900">{row.fullName}</p>
+                  <p className="font-semibold text-ink">{row.fullName}</p>
                   <Link
                     href={`/potentials/${row.id}`}
-                    className="shrink-0 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700"
+                    className="shrink-0 rounded-lg bg-gold-pale px-3 py-2 text-sm font-medium text-navy"
                   >
                     כרטיס
                   </Link>
                 </div>
-                <dl className="grid gap-1 text-sm text-slate-600">
+                <dl className="grid gap-1 text-sm text-ink-mid">
                   {row.phones[0] ? (
                     <div className="flex justify-between gap-2">
                       <dt>טלפון</dt>
                       <dd>
-                        <a href={`tel:${row.phones[0]}`} className="text-indigo-600">
+                        <a href={`tel:${row.phones[0]}`} className="text-navy">
                           {row.phones[0]}
                         </a>
                       </dd>
@@ -146,13 +146,13 @@ export default function ContactsPage() {
               </li>
             ))}
             {showEmpty ? (
-              <li className="rounded-xl border p-4 text-center text-slate-500">אין אנשי קשר במערכת.</li>
+              <li className="rounded-xl border p-4 text-center text-ink-light">אין אנשי קשר במערכת.</li>
             ) : null}
           </ul>
 
           <div className="hidden overflow-x-auto rounded-xl border md:block">
             <table className="w-full min-w-[640px] text-right text-sm">
-              <thead className="bg-slate-50">
+              <thead className="bg-cream">
                 <tr>
                   <th className="p-2">שם</th>
                   <th className="p-2">אימייל</th>
@@ -171,7 +171,7 @@ export default function ContactsPage() {
                     <td className="p-2">{row.responsibleName ?? "-"}</td>
                     <td className="p-2">{new Date(row.createdAt).toLocaleDateString("he-IL")}</td>
                     <td className="p-2">
-                      <Link href={`/potentials/${row.id}`} className="text-indigo-600 hover:text-indigo-500">
+                      <Link href={`/potentials/${row.id}`} className="text-navy hover:text-navy-light">
                         פתיחה
                       </Link>
                     </td>
@@ -179,7 +179,7 @@ export default function ContactsPage() {
                 ))}
                 {showEmpty ? (
                   <tr>
-                    <td className="p-3 text-slate-500" colSpan={6}>
+                    <td className="p-3 text-ink-light" colSpan={6}>
                       אין אנשי קשר במערכת.
                     </td>
                   </tr>
@@ -190,7 +190,7 @@ export default function ContactsPage() {
 
           {totalCount > PAGE_SIZE ? (
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span className="text-slate-600">
+              <span className="text-ink-mid">
                 {totalCount} אנשי קשר · עמוד {page + 1} מתוך {totalPages}
               </span>
               <div className="flex gap-2">
@@ -214,7 +214,7 @@ export default function ContactsPage() {
             </div>
           ) : null}
 
-          {error ? <p className="rounded-lg bg-rose-50 p-2 text-sm text-rose-700">{error}</p> : null}
+          {error ? <p className="rounded-lg bg-danger-pale p-2 text-sm text-danger">{error}</p> : null}
         </div>
       </AppShell>
     </AuthGuard>

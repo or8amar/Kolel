@@ -121,7 +121,7 @@ export default function PaymentsPage() {
       <AppShell>
         <div className="grid gap-4">
           <h2 className="text-xl font-bold">הזנת תשלום ידנית</h2>
-          {loadingContacts ? <p className="rounded-lg bg-slate-50 p-4 text-slate-600">טוען רשימת אנשי קשר...</p> : null}
+          {loadingContacts ? <p className="rounded-lg bg-cream p-4 text-ink-mid">טוען רשימת אנשי קשר...</p> : null}
           <form onSubmit={onSubmit} className="grid max-w-lg gap-3 rounded-xl border p-4 md:max-w-none">
             <select
               value={form.contactId}
@@ -221,8 +221,8 @@ export default function PaymentsPage() {
               שמירת תשלום
             </button>
           </form>
-          {success ? <p className="rounded-lg bg-emerald-50 p-2 text-sm text-emerald-700">{success}</p> : null}
-          {error ? <p className="rounded-lg bg-rose-50 p-2 text-sm text-rose-700">{error}</p> : null}
+          {success ? <p className="rounded-lg bg-emerald-50 p-2 text-sm text-navy">{success}</p> : null}
+          {error ? <p className="rounded-lg bg-danger-pale p-2 text-sm text-danger">{error}</p> : null}
         </div>
       </AppShell>
     </AuthGuard>

@@ -291,7 +291,7 @@ export default function ImportContactsPage() {
             {(parsed.length > 0 || summary) && (
               <button
                 onClick={reset}
-                className="rounded-lg border px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                className="rounded-lg border px-3 py-2 text-sm text-ink-mid hover:bg-cream"
               >
                 ניקוי
               </button>
@@ -318,10 +318,10 @@ export default function ImportContactsPage() {
                   e.preventDefault();
                   if (e.dataTransfer?.files?.length) void handleFiles(e.dataTransfer.files);
                 }}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-600"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line bg-cream p-6 text-center text-sm text-ink-mid"
               >
                 <p>גרור לכאן קבצים או בחר ידנית</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-ink-light">
                   נתמכים: ייצוא מגוגל או אאוטלוק (CSV), כרטיסי איש קשר (VCF, כולל וואטסאפ), Excel (.xlsx/.xls), JSON
                 </p>
                 <input
@@ -337,13 +337,13 @@ export default function ImportContactsPage() {
               </div>
 
               <div className="rounded-xl border p-4">
-                <p className="mb-3 text-sm text-slate-600">
+                <p className="mb-3 text-sm text-ink-mid">
                   ייבוא דרך ממשק אנשי הקשר של הדפדפן (זמין בכרום באנדרואיד בלבד).
                 </p>
                 <button
                   disabled={!canUseBrowserApi || running}
                   onClick={importFromBrowser}
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                  className="rounded-lg bg-navy px-4 py-2 text-white disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
                   ייבוא מאנשי הקשר בדפדפן
                 </button>
@@ -356,7 +356,7 @@ export default function ImportContactsPage() {
 
           {tab === "paste" ? (
             <div className="grid gap-3">
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-ink-mid">
                 הדבק רשימה — שורה לכל איש קשר. ניתן להדביק מאקסל (עמודות מופרדות בטאב: שם פרטי, שם משפחה,
                 טלפון), מוואטסאפ, או טקסט חופשי.
               </p>
@@ -372,7 +372,7 @@ export default function ImportContactsPage() {
               <div className="flex justify-end">
                 <button
                   onClick={handlePasteParse}
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700"
+                  className="rounded-lg bg-navy px-4 py-2 text-sm text-white hover:bg-navy-light"
                 >
                   נתח רשימה
                 </button>
@@ -382,7 +382,7 @@ export default function ImportContactsPage() {
 
           {tab === "manual" ? (
             <div className="grid gap-3">
-              <p className="text-sm text-slate-600">הוסף איש קשר אחד או יותר באופן ידני.</p>
+              <p className="text-sm text-ink-mid">הוסף איש קשר אחד או יותר באופן ידני.</p>
               <div className="grid gap-3 md:grid-cols-3">
                 <input
                   type="text"
@@ -409,7 +409,7 @@ export default function ImportContactsPage() {
               <div className="flex justify-end">
                 <button
                   onClick={handleManualAdd}
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700"
+                  className="rounded-lg bg-navy px-4 py-2 text-sm text-white hover:bg-navy-light"
                 >
                   הוסף לרשימה
                 </button>
@@ -417,13 +417,13 @@ export default function ImportContactsPage() {
             </div>
           ) : null}
 
-          {info && !error ? <p className="rounded-lg bg-sky-50 p-3 text-sm text-sky-800">{info}</p> : null}
-          {error ? <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
+          {info && !error ? <p className="rounded-lg bg-gold-pale p-3 text-sm text-navy">{info}</p> : null}
+          {error ? <p className="rounded-lg bg-danger-pale p-3 text-sm text-danger">{error}</p> : null}
 
           {parsed.length > 0 ? (
             <div className="rounded-xl border">
               <div className="grid gap-3 border-b p-3">
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-ink-mid">
                   התצוגה נטענת בהדרגה בגלילה (25 שורות בכל פעם). בדיקת כפילויות לפי אצוות.
                 </p>
                 <div className="grid gap-2 sm:flex sm:flex-wrap">
@@ -452,10 +452,10 @@ export default function ImportContactsPage() {
                 getKey={(row, i) => makeContactKey(row.fullName, row.phones, row.email) + String(i)}
                 renderItem={(row) => (
                   <div className="grid gap-1 px-3 py-3 text-sm md:grid-cols-4 md:gap-2">
-                    <p className="font-medium text-slate-900">{row.fullName}</p>
-                    <p className="text-slate-600">{row.phones.join(", ") || "—"}</p>
-                    <p className="text-slate-600">{row.email ?? "—"}</p>
-                    <p className="text-slate-500">{formatContactSource(row.source)}</p>
+                    <p className="font-medium text-ink">{row.fullName}</p>
+                    <p className="text-ink-mid">{row.phones.join(", ") || "—"}</p>
+                    <p className="text-ink-mid">{row.email ?? "—"}</p>
+                    <p className="text-ink-light">{formatContactSource(row.source)}</p>
                   </div>
                 )}
               />
@@ -464,12 +464,12 @@ export default function ImportContactsPage() {
 
           {running && progress.total > 0 ? (
             <div className="rounded-xl border p-4">
-              <p className="mb-2 text-sm text-slate-700">
+              <p className="mb-2 text-sm text-ink-mid">
                 התקדמות: {progress.done}/{progress.total}
               </p>
               <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
                 <div
-                  className="h-full bg-indigo-600 transition-all"
+                  className="h-full bg-navy transition-all"
                   style={{ width: `${Math.min(100, (progress.done / progress.total) * 100)}%` }}
                 />
               </div>
@@ -477,9 +477,9 @@ export default function ImportContactsPage() {
           ) : null}
 
           {summary ? (
-            <div className="rounded-xl border bg-slate-50 p-4">
-              <h3 className="mb-2 font-semibold text-slate-800">סיכום ייבוא</h3>
-              <ul className="grid gap-1 text-sm text-slate-700">
+            <div className="rounded-xl border bg-cream p-4">
+              <h3 className="mb-2 font-semibold text-ink">סיכום ייבוא</h3>
+              <ul className="grid gap-1 text-sm text-ink-mid">
                 <li>נוספו: {summary.imported}</li>
                 <li>דולגו (כפילויות): {summary.skippedDuplicates}</li>
                 <li>נכשלו: {summary.failed}</li>
@@ -489,7 +489,7 @@ export default function ImportContactsPage() {
                   {summary.duplicateDetails.slice(0, 20).map((dup, i) => (
                     <li key={`${dup.contactId}-${dup.phone}-${i}`}>
                       טלפון {dup.phone} כבר קיים:{" "}
-                      <a href={`/potentials/${dup.contactId}`} className="font-medium text-indigo-600 underline">
+                      <a href={`/potentials/${dup.contactId}`} className="font-medium text-navy underline">
                         {dup.name}
                       </a>
                     </li>
@@ -500,7 +500,7 @@ export default function ImportContactsPage() {
                 </ul>
               ) : null}
               {summary.errors.length > 0 ? (
-                <details className="mt-2 text-xs text-rose-700">
+                <details className="mt-2 text-xs text-danger">
                   <summary className="cursor-pointer">פרטי שגיאות ({summary.errors.length})</summary>
                   <ul className="mt-1 list-disc pr-4">
                     {summary.errors.map((m, i) => (
@@ -625,8 +625,8 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
       onClick={onClick}
       className={`min-h-11 flex-1 rounded-lg px-2 py-2 text-sm font-medium transition md:min-h-0 md:flex-none md:rounded-none md:border-b-2 md:px-3 ${
         active
-          ? "bg-indigo-600 text-white md:border-indigo-600 md:bg-transparent md:text-indigo-700"
-          : "bg-slate-100 text-slate-700 md:border-transparent md:bg-transparent md:text-slate-600"
+          ? "bg-navy text-white md:border-indigo-600 md:bg-transparent md:text-navy"
+          : "bg-navy-pale text-ink-mid md:border-transparent md:bg-transparent md:text-ink-mid"
       }`}
     >
       {children}

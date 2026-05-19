@@ -28,32 +28,42 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-100 p-4" dir="rtl">
-      <div className="w-full max-w-md rounded-2xl border bg-white p-6 shadow-sm">
-        <h1 className="mb-2 text-2xl font-bold">כניסת אדמין</h1>
-        <p className="mb-4 text-sm text-slate-600">התחברות למערכת הניהול</p>
-        <form className="grid gap-3" onSubmit={onSubmit}>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="אימייל"
-            className={fieldInput}
-          />
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="סיסמה"
-            className={fieldInput}
-          />
+    <main className="flex min-h-screen items-center justify-center bg-cream p-4" dir="rtl">
+      <div className="w-full max-w-app ep-card">
+        <h1 className="mb-1 text-2xl font-bold text-ink">כולל — תשלומים</h1>
+        <p className="mb-5 text-sm text-ink-mid">התחברות למערכת הניהול</p>
+        <form className="grid gap-4" onSubmit={onSubmit}>
+          <label className="grid gap-1.5 text-sm font-semibold text-ink-mid">
+            אימייל
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@example.com"
+              className={fieldInput}
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm font-semibold text-ink-mid">
+            סיסמה
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className={fieldInput}
+            />
+          </label>
           <button disabled={loading} className={btnPrimary}>
             {loading ? "מתחבר..." : "התחברות"}
           </button>
         </form>
-        {error ? <p className="mt-3 rounded-lg bg-rose-50 p-2 text-sm text-rose-700">{error}</p> : null}
+        {error ? (
+          <p className="mt-4 rounded-ep-sm border border-danger/30 bg-danger-pale p-3 text-sm text-danger">
+            {error}
+          </p>
+        ) : null}
       </div>
     </main>
   );

@@ -1,14 +1,21 @@
-/** Mobile-first form controls (16px inputs avoid iOS zoom on focus). */
-export const fieldInput =
-  "w-full rounded-lg border border-slate-300 bg-white p-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 md:p-2 md:text-sm";
+/** עיצוב משותף — מבוסס על event-planner (navy + gold + cream) */
 
-export const fieldSelect = fieldInput;
+const fieldBase =
+  "w-full rounded-ep-sm border-[1.5px] border-line bg-white px-3.5 text-base text-ink outline-none transition-colors placeholder:text-ink-light focus:border-navy md:h-11 md:text-sm";
+
+export const fieldInput = fieldBase;
+
+export const fieldSelect = fieldBase;
 
 export const btnPrimary =
-  "inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-3 text-base font-medium text-white transition hover:bg-indigo-500 active:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300 md:min-h-9 md:w-auto md:px-3 md:py-2 md:text-sm";
+  "inline-flex min-h-12 w-full items-center justify-center gap-1.5 rounded-ep-sm bg-navy px-5 text-base font-semibold text-white transition active:scale-[0.98] active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 md:min-h-11 md:w-auto md:text-sm";
+
+export const btnGold =
+  "inline-flex min-h-12 w-full items-center justify-center gap-1.5 rounded-ep-sm bg-gold px-5 text-base font-semibold text-navy transition active:scale-[0.98] active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 md:min-h-11 md:w-auto md:text-sm";
 
 export const btnSecondary =
-  "inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-800 transition hover:bg-slate-50 active:bg-slate-100 disabled:opacity-40 md:min-h-9 md:px-3 md:py-2 md:text-sm";
+  "inline-flex min-h-12 items-center justify-center gap-1.5 rounded-ep-sm border border-line bg-cream px-5 text-base font-semibold text-ink-mid transition hover:bg-white active:scale-[0.98] disabled:opacity-40 md:min-h-11 md:text-sm";
 
-export const btnSuccess =
-  "inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-emerald-600 px-4 py-3 text-base font-medium text-white transition hover:bg-emerald-700 active:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300 md:min-h-9 md:w-auto md:px-3 md:py-2 md:text-sm";
+export const btnSuccess = btnGold;
+
+export const card = "ep-card";

@@ -108,7 +108,7 @@ export default function PotentialsPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-bold">ניהול פוטנציאלים</h2>
             <div className="flex flex-wrap items-center gap-2">
-              <Link href="/contacts" className="text-sm text-indigo-600 hover:text-indigo-500">
+              <Link href="/contacts" className="text-sm text-navy hover:text-navy-light">
                 כל אנשי הקשר
               </Link>
               <select
@@ -123,26 +123,26 @@ export default function PotentialsPage() {
             </div>
           </div>
 
-          {loading ? <p className="rounded-lg bg-slate-50 p-4 text-slate-600">טוען פוטנציאלים...</p> : null}
+          {loading ? <p className="rounded-lg bg-cream p-4 text-ink-mid">טוען פוטנציאלים...</p> : null}
 
           <ul className="grid gap-3 md:hidden">
             {filtered.map((item) => (
               <li key={item.id} className="rounded-xl border bg-white p-4 shadow-sm">
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold text-slate-900">{item.contactName}</p>
+                    <p className="font-semibold text-ink">{item.contactName}</p>
                     {item.contactEmail ? (
-                      <p className="text-sm text-slate-600">{item.contactEmail}</p>
+                      <p className="text-sm text-ink-mid">{item.contactEmail}</p>
                     ) : null}
                   </div>
                   <Link
                     href={`/potentials/${item.contactId}`}
-                    className="shrink-0 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700"
+                    className="shrink-0 rounded-lg bg-gold-pale px-3 py-2 text-sm font-medium text-navy"
                   >
                     כרטיס
                   </Link>
                 </div>
-                <dl className="mb-3 grid gap-1 text-sm text-slate-600">
+                <dl className="mb-3 grid gap-1 text-sm text-ink-mid">
                   <div className="flex justify-between gap-2">
                     <dt>אחראי</dt>
                     <dd>{item.responsibleName ?? "—"}</dd>
@@ -157,7 +157,7 @@ export default function PotentialsPage() {
                   </div>
                 </dl>
                 <label className="grid gap-1 text-sm">
-                  <span className="text-slate-600">סטטוס</span>
+                  <span className="text-ink-mid">סטטוס</span>
                   <select
                     value={item.status}
                     onChange={(e) => void updateStatus(item, e.target.value as PotentialStatus)}
@@ -180,13 +180,13 @@ export default function PotentialsPage() {
               </li>
             ))}
             {!loading && !filtered.length ? (
-              <li className="rounded-xl border p-4 text-center text-slate-500">לא נמצאו תוצאות.</li>
+              <li className="rounded-xl border p-4 text-center text-ink-light">לא נמצאו תוצאות.</li>
             ) : null}
           </ul>
 
           <div className="hidden overflow-x-auto rounded-xl border md:block">
             <table className="w-full min-w-[780px] text-right text-sm">
-              <thead className="bg-slate-50">
+              <thead className="bg-cream">
                 <tr>
                   <th className="p-2">שם</th>
                   <th className="p-2">אימייל</th>
@@ -226,7 +226,7 @@ export default function PotentialsPage() {
                       </select>
                     </td>
                     <td className="p-2">
-                      <Link href={`/potentials/${item.contactId}`} className="text-indigo-600 hover:text-indigo-500">
+                      <Link href={`/potentials/${item.contactId}`} className="text-navy hover:text-navy-light">
                         פתיחה
                       </Link>
                     </td>
@@ -234,7 +234,7 @@ export default function PotentialsPage() {
                 ))}
                 {!filtered.length ? (
                   <tr>
-                    <td className="p-3 text-slate-500" colSpan={6}>
+                    <td className="p-3 text-ink-light" colSpan={6}>
                       לא נמצאו תוצאות.
                     </td>
                   </tr>
@@ -242,7 +242,7 @@ export default function PotentialsPage() {
               </tbody>
             </table>
           </div>
-          {error ? <p className="rounded-lg bg-rose-50 p-2 text-sm text-rose-700">{error}</p> : null}
+          {error ? <p className="rounded-lg bg-danger-pale p-2 text-sm text-danger">{error}</p> : null}
         </div>
       </AppShell>
     </AuthGuard>

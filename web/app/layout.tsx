@@ -1,5 +1,12 @@
 import type { Metadata, Viewport } from "next";
+import { Heebo } from "next/font/google";
 import "./globals.css";
+
+const heebo = Heebo({
+  subsets: ["hebrew", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "כולל — מעקב תשלומים",
@@ -16,7 +23,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="he">
-      <body suppressHydrationWarning>{children}</body>
+      <body className={heebo.className} suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

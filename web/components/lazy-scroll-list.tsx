@@ -53,7 +53,7 @@ export function LazyScrollList<T>({
   const hasMore = visibleCount < items.length;
 
   if (!items.length) {
-    return <p className="p-4 text-center text-sm text-slate-500">{emptyMessage}</p>;
+    return <p className="p-4 text-center text-sm text-ink-light">{emptyMessage}</p>;
   }
 
   return (
@@ -67,11 +67,11 @@ export function LazyScrollList<T>({
         <div ref={sentinelRef} className="h-4" aria-hidden />
       </div>
       {hasMore ? (
-        <p className="border-t bg-slate-50 px-3 py-2 text-center text-xs text-slate-500">
+        <p className="border-t bg-cream px-3 py-2 text-center text-xs text-ink-light">
           מוצגים {visible.length} מתוך {items.length} — גלול למטה לטעון עוד
         </p>
       ) : (
-        <p className="border-t bg-slate-50 px-3 py-2 text-center text-xs text-slate-500">
+        <p className="border-t bg-cream px-3 py-2 text-center text-xs text-ink-light">
           סה״כ {items.length} בשורות
         </p>
       )}

@@ -72,7 +72,7 @@ export default function DashboardPage() {
     <AuthGuard>
       <AppShell>
         <div className="grid gap-4">
-          {loading ? <p className="rounded-lg bg-slate-50 p-4 text-slate-600">טוען נתוני לוח בקרה...</p> : null}
+          {loading ? <p className="rounded-ep-sm bg-navy-pale p-4 text-ink-mid">טוען נתוני לוח בקרה...</p> : null}
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <Kpi title="מאגר אנשי קשר" value={metrics.totalContacts} />
             <Kpi title="פוטנציאלים פעילים" value={metrics.activePotentialsCount} />
@@ -102,30 +102,32 @@ export default function DashboardPage() {
             <Kpi title="דורש מעקב (7 ימים)" value={metrics.followUpCount} />
           </div>
 
-          <div className="rounded-xl border p-4">
+          <div className="ep-card">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">אנשים הדורשים מעקב</h2>
-              <Link href="/potentials" className="text-sm text-indigo-600 hover:text-indigo-500">
+              <h2 className="text-lg font-bold text-ink">אנשים הדורשים מעקב</h2>
+              <Link href="/potentials" className="ep-link text-sm">
                 לכל הפוטנציאלים
               </Link>
             </div>
             <ul className="grid gap-2">
               {needsFollowUp.map((item) => (
-                <li key={item.id} className="rounded-lg border p-3 text-sm">
+                <li key={item.id} className="rounded-ep-sm border border-line p-3 text-sm">
                   <Link
                     href={`/potentials/${item.contactId}`}
-                    className="flex min-h-10 items-center justify-between gap-2 font-medium text-indigo-700"
+                    className="flex min-h-10 items-center justify-between gap-2 font-medium text-navy"
                   >
                     <span>{formatPotentialStatus(item.status)}</span>
-                    <span className="text-slate-600">מעקב: {formatDate(item.nextFollowUpAt)}</span>
+                    <span className="text-ink-mid">מעקב: {formatDate(item.nextFollowUpAt)}</span>
                   </Link>
                 </li>
               ))}
-              {!needsFollowUp.length ? <li className="text-sm text-slate-500">אין פריטי מעקב כרגע.</li> : null}
+              {!needsFollowUp.length ? <li className="text-sm text-ink-light">אין פריטי מעקב כרגע.</li> : null}
             </ul>
           </div>
 
-          {error ? <p className="rounded-lg bg-rose-50 p-2 text-sm text-rose-700">{error}</p> : null}
+          {error ? (
+            <p className="rounded-ep-sm border border-danger/30 bg-danger-pale p-3 text-sm text-danger">{error}</p>
+          ) : null}
         </div>
       </AppShell>
     </AuthGuard>
@@ -134,9 +136,9 @@ export default function DashboardPage() {
 
 function Kpi({ title, value }: { title: string; value: string | number }) {
   return (
-    <article className="rounded-xl border bg-slate-50 p-4">
-      <p className="text-sm text-slate-600">{title}</p>
-      <p className="text-xl font-bold text-slate-900 md:text-2xl">{value}</p>
+    <article className="ep-kpi">
+      <p className="ep-kpi-label">{title}</p>
+      <p className="ep-kpi-value">{value}</p>
     </article>
   );
 }

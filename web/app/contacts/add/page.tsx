@@ -87,7 +87,7 @@ export default function AddContactPage() {
         <div className="grid gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold">הוספת איש קשר</h2>
-            <Link href="/contacts" className="text-sm text-indigo-600 hover:text-indigo-500">
+            <Link href="/contacts" className="text-sm text-navy hover:text-navy-light">
               חזרה לרשימה
             </Link>
           </div>
@@ -133,7 +133,7 @@ export default function AddContactPage() {
           </form>
 
           {error ? (
-            <p className="rounded-lg bg-rose-50 p-2 text-sm text-rose-700">
+            <p className="rounded-lg bg-danger-pale p-2 text-sm text-danger">
               {error}{" "}
               {duplicateLink ? (
                 <Link href={`/potentials/${duplicateLink.id}`} className="font-medium underline">
