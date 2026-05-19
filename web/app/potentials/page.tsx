@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AuthGuard } from "@/components/auth-guard";
 import { formatPotentialStatus, translateApiError } from "@/lib/labels";
+import { fieldSelect } from "@/lib/ui";
 import {
   ACTIVE_POTENTIAL_STATUSES,
   CLOSED_POTENTIAL_STATUSES,
@@ -111,7 +112,7 @@ export default function PotentialsPage() {
                 כל אנשי הקשר
               </Link>
               <select
-                className="rounded-lg border px-2 py-1 text-sm"
+                className={`${fieldSelect} max-w-full text-sm md:max-w-xs`}
                 value={listFilter}
                 onChange={(e) => setListFilter(e.target.value as ListFilter)}
               >
@@ -124,7 +125,66 @@ export default function PotentialsPage() {
 
           {loading ? <p className="rounded-lg bg-slate-50 p-4 text-slate-600">טוען פוטנציאלים...</p> : null}
 
-          <div className="overflow-x-auto rounded-xl border">
+          <ul className="grid gap-3 md:hidden">
+            {filtered.map((item) => (
+              <li key={item.id} className="rounded-xl border bg-white p-4 shadow-sm">
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-slate-900">{item.contactName}</p>
+                    {item.contactEmail ? (
+                      <p className="text-sm text-slate-600">{item.contactEmail}</p>
+                    ) : null}
+                  </div>
+                  <Link
+                    href={`/potentials/${item.contactId}`}
+                    className="shrink-0 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700"
+                  >
+                    כרטיס
+                  </Link>
+                </div>
+                <dl className="mb-3 grid gap-1 text-sm text-slate-600">
+                  <div className="flex justify-between gap-2">
+                    <dt>אחראי</dt>
+                    <dd>{item.responsibleName ?? "—"}</dd>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <dt>מעקב הבא</dt>
+                    <dd>
+                      {item.nextFollowUpAt
+                        ? new Date(item.nextFollowUpAt).toLocaleDateString("he-IL")
+                        : "—"}
+                    </dd>
+                  </div>
+                </dl>
+                <label className="grid gap-1 text-sm">
+                  <span className="text-slate-600">סטטוס</span>
+                  <select
+                    value={item.status}
+                    onChange={(e) => void updateStatus(item, e.target.value as PotentialStatus)}
+                    className={fieldSelect}
+                  >
+                    {ACTIVE_POTENTIAL_STATUSES.map((status) => (
+                      <option key={status} value={status}>
+                        {formatPotentialStatus(status)}
+                      </option>
+                    ))}
+                    <optgroup label="סגירה">
+                      {CLOSED_POTENTIAL_STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {formatPotentialStatus(status)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </label>
+              </li>
+            ))}
+            {!loading && !filtered.length ? (
+              <li className="rounded-xl border p-4 text-center text-slate-500">לא נמצאו תוצאות.</li>
+            ) : null}
+          </ul>
+
+          <div className="hidden overflow-x-auto rounded-xl border md:block">
             <table className="w-full min-w-[780px] text-right text-sm">
               <thead className="bg-slate-50">
                 <tr>

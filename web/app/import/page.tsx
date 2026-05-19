@@ -293,7 +293,7 @@ export default function ImportContactsPage() {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2 border-b">
+          <div className="grid grid-cols-3 gap-2 md:flex md:flex-wrap md:border-b">
             <TabBtn active={tab === "files"} onClick={() => setTab("files")}>
               מקבצים
             </TabBtn>
@@ -613,9 +613,12 @@ async function insertPotentialsBatch(
 function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`-mb-px border-b-2 px-3 py-2 text-sm transition ${
-        active ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-600 hover:text-slate-900"
+      className={`min-h-11 flex-1 rounded-lg px-2 py-2 text-sm font-medium transition md:min-h-0 md:flex-none md:rounded-none md:border-b-2 md:px-3 ${
+        active
+          ? "bg-indigo-600 text-white md:border-indigo-600 md:bg-transparent md:text-indigo-700"
+          : "bg-slate-100 text-slate-700 md:border-transparent md:bg-transparent md:text-slate-600"
       }`}
     >
       {children}

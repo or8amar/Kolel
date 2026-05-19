@@ -15,7 +15,9 @@ type DashboardContact = { createdAt: string };
 
 export default function DashboardPage() {
   const [contacts, setContacts] = useState<DashboardContact[]>([]);
-  const [potentials, setPotentials] = useState<Pick<PaymentPotential, "id" | "status" | "nextFollowUpAt">[]>([]);
+  const [potentials, setPotentials] = useState<
+    Pick<PaymentPotential, "id" | "contactId" | "status" | "nextFollowUpAt">[]
+  >([]);
   const [donations, setDonations] = useState<Pick<Donation, "amount" | "type" | "paidAt">[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -28,7 +30,7 @@ export default function DashboardPage() {
     setLoading(true);
     const [contactsRes, potentialsRes, donationsRes] = await Promise.all([
       supabase.from("contacts").select("createdAt"),
-      supabase.from("payment_potentials").select("id, status, nextFollowUpAt"),
+      supabase.from("payment_potentials").select("id, contactId, status, nextFollowUpAt"),
       supabase.from("donations").select("amount, type, paidAt"),
     ]);
 
@@ -46,7 +48,9 @@ export default function DashboardPage() {
     }
 
     setContacts((contactsRes.data as DashboardContact[]) ?? []);
-    setPotentials((potentialsRes.data as Pick<PaymentPotential, "id" | "status" | "nextFollowUpAt">[]) ?? []);
+    setPotentials(
+      (potentialsRes.data as Pick<PaymentPotential, "id" | "contactId" | "status" | "nextFollowUpAt">[]) ?? [],
+    );
     setDonations((donationsRes.data as Pick<Donation, "amount" | "type" | "paidAt">[]) ?? []);
     setLoading(false);
   }
@@ -107,9 +111,14 @@ export default function DashboardPage() {
             </div>
             <ul className="grid gap-2">
               {needsFollowUp.map((item) => (
-                <li key={item.id} className="flex items-center justify-between rounded-lg border p-2 text-sm">
-                  <span>{formatPotentialStatus(item.status)}</span>
-                  <span>מעקב: {formatDate(item.nextFollowUpAt)}</span>
+                <li key={item.id} className="rounded-lg border p-3 text-sm">
+                  <Link
+                    href={`/potentials/${item.contactId}`}
+                    className="flex min-h-10 items-center justify-between gap-2 font-medium text-indigo-700"
+                  >
+                    <span>{formatPotentialStatus(item.status)}</span>
+                    <span className="text-slate-600">מעקב: {formatDate(item.nextFollowUpAt)}</span>
+                  </Link>
                 </li>
               ))}
               {!needsFollowUp.length ? <li className="text-sm text-slate-500">אין פריטי מעקב כרגע.</li> : null}
@@ -127,7 +136,7 @@ function Kpi({ title, value }: { title: string; value: string | number }) {
   return (
     <article className="rounded-xl border bg-slate-50 p-4">
       <p className="text-sm text-slate-600">{title}</p>
-      <p className="text-2xl font-bold text-slate-900">{value}</p>
+      <p className="text-xl font-bold text-slate-900 md:text-2xl">{value}</p>
     </article>
   );
 }

@@ -5,6 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { AuthGuard } from "@/components/auth-guard";
 import { validateDonationInput } from "@/lib/donations";
 import { formatPaymentMethod, PAYMENT_METHOD_OPTIONS, translateApiError } from "@/lib/labels";
+import { btnPrimary, fieldInput, fieldSelect } from "@/lib/ui";
 import { supabase } from "@/lib/supabase/client";
 import type { Contact, DonationType, PaymentMethod, PlanFrequency } from "@/lib/types";
 
@@ -121,11 +122,11 @@ export default function PaymentsPage() {
         <div className="grid gap-4">
           <h2 className="text-xl font-bold">הזנת תשלום ידנית</h2>
           {loadingContacts ? <p className="rounded-lg bg-slate-50 p-4 text-slate-600">טוען רשימת אנשי קשר...</p> : null}
-          <form onSubmit={onSubmit} className="grid gap-3 rounded-xl border p-4">
+          <form onSubmit={onSubmit} className="grid max-w-lg gap-3 rounded-xl border p-4 md:max-w-none">
             <select
               value={form.contactId}
               onChange={(e) => setForm((prev) => ({ ...prev, contactId: e.target.value }))}
-              className="rounded-lg border p-2"
+              className={fieldSelect}
               required
               disabled={loadingContacts}
             >
@@ -143,13 +144,13 @@ export default function PaymentsPage() {
               value={form.amount}
               onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
               placeholder="סכום *"
-              className="rounded-lg border p-2"
+              className={fieldInput}
               required
             />
             <select
               value={form.type}
               onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value as DonationType }))}
-              className="rounded-lg border p-2"
+              className={fieldSelect}
             >
               <option value="one_time">חד פעמי</option>
               <option value="recurring">מחזורי</option>
@@ -163,7 +164,7 @@ export default function PaymentsPage() {
                   paymentMethodOther: e.target.value === "other" ? prev.paymentMethodOther : "",
                 }))
               }
-              className="rounded-lg border p-2"
+              className={fieldSelect}
               required
             >
               {PAYMENT_METHOD_OPTIONS.map((method) => (
@@ -178,7 +179,7 @@ export default function PaymentsPage() {
                 value={form.paymentMethodOther}
                 onChange={(e) => setForm((prev) => ({ ...prev, paymentMethodOther: e.target.value }))}
                 placeholder="פרט אמצעי תשלום"
-                className="rounded-lg border p-2"
+                className={fieldInput}
                 required
               />
             ) : null}
@@ -187,7 +188,7 @@ export default function PaymentsPage() {
                 <select
                   value={form.frequency}
                   onChange={(e) => setForm((prev) => ({ ...prev, frequency: e.target.value as PlanFrequency }))}
-                  className="rounded-lg border p-2"
+                  className={fieldSelect}
                 >
                   <option value="monthly">חודשי</option>
                   <option value="yearly">שנתי</option>
@@ -197,14 +198,14 @@ export default function PaymentsPage() {
                   aria-label="תאריך התחלה"
                   value={form.startDate}
                   onChange={(e) => setForm((prev) => ({ ...prev, startDate: e.target.value }))}
-                  className="rounded-lg border p-2"
+                  className={fieldInput}
                 />
                 <input
                   type="date"
                   aria-label="תאריך סיום (אופציונלי)"
                   value={form.endDate}
                   onChange={(e) => setForm((prev) => ({ ...prev, endDate: e.target.value }))}
-                  className="rounded-lg border p-2"
+                  className={fieldInput}
                 />
               </>
             ) : null}
@@ -213,10 +214,12 @@ export default function PaymentsPage() {
               aria-label="תאריך תשלום"
               value={form.paidAt}
               onChange={(e) => setForm((prev) => ({ ...prev, paidAt: e.target.value }))}
-              className="rounded-lg border p-2"
+              className={fieldInput}
               required
             />
-            <button className="rounded-lg bg-indigo-600 px-3 py-2 text-white hover:bg-indigo-500">שמירת תשלום</button>
+            <button type="submit" className={btnPrimary}>
+              שמירת תשלום
+            </button>
           </form>
           {success ? <p className="rounded-lg bg-emerald-50 p-2 text-sm text-emerald-700">{success}</p> : null}
           {error ? <p className="rounded-lg bg-rose-50 p-2 text-sm text-rose-700">{error}</p> : null}

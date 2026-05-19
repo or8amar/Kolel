@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AuthGuard } from "@/components/auth-guard";
 import { translateApiError } from "@/lib/labels";
+import { btnSecondary } from "@/lib/ui";
 import { supabase } from "@/lib/supabase/client";
 import type { Contact } from "@/lib/types";
 
@@ -110,7 +111,46 @@ export default function ContactsPage() {
 
           {loading ? <p className="rounded-lg bg-slate-50 p-4 text-slate-600">טוען אנשי קשר...</p> : null}
 
-          <div className="overflow-x-auto rounded-xl border">
+          <ul className="grid gap-3 md:hidden">
+            {rows.map((row) => (
+              <li key={row.id} className="rounded-xl border bg-white p-4 shadow-sm">
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <p className="font-semibold text-slate-900">{row.fullName}</p>
+                  <Link
+                    href={`/potentials/${row.id}`}
+                    className="shrink-0 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700"
+                  >
+                    כרטיס
+                  </Link>
+                </div>
+                <dl className="grid gap-1 text-sm text-slate-600">
+                  {row.phones[0] ? (
+                    <div className="flex justify-between gap-2">
+                      <dt>טלפון</dt>
+                      <dd>
+                        <a href={`tel:${row.phones[0]}`} className="text-indigo-600">
+                          {row.phones[0]}
+                        </a>
+                      </dd>
+                    </div>
+                  ) : null}
+                  <div className="flex justify-between gap-2">
+                    <dt>אחראי</dt>
+                    <dd>{row.responsibleName ?? "—"}</dd>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <dt>נוצר</dt>
+                    <dd>{new Date(row.createdAt).toLocaleDateString("he-IL")}</dd>
+                  </div>
+                </dl>
+              </li>
+            ))}
+            {showEmpty ? (
+              <li className="rounded-xl border p-4 text-center text-slate-500">אין אנשי קשר במערכת.</li>
+            ) : null}
+          </ul>
+
+          <div className="hidden overflow-x-auto rounded-xl border md:block">
             <table className="w-full min-w-[640px] text-right text-sm">
               <thead className="bg-slate-50">
                 <tr>
@@ -158,7 +198,7 @@ export default function ContactsPage() {
                   type="button"
                   disabled={page === 0 || loading}
                   onClick={() => setPage((p) => p - 1)}
-                  className="rounded-lg border px-3 py-1 disabled:opacity-40"
+                  className={btnSecondary}
                 >
                   הקודם
                 </button>
@@ -166,7 +206,7 @@ export default function ContactsPage() {
                   type="button"
                   disabled={page >= totalPages - 1 || loading}
                   onClick={() => setPage((p) => p + 1)}
-                  className="rounded-lg border px-3 py-1 disabled:opacity-40"
+                  className={btnSecondary}
                 >
                   הבא
                 </button>

@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { translateApiError } from "@/lib/labels";
 import { supabase } from "@/lib/supabase/client";
+import { btnPrimary, fieldInput } from "@/lib/ui";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,7 +39,7 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="אימייל"
-            className="rounded-lg border p-2"
+            className={fieldInput}
           />
           <input
             type="password"
@@ -46,9 +47,9 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="סיסמה"
-            className="rounded-lg border p-2"
+            className={fieldInput}
           />
-          <button disabled={loading} className="rounded-lg bg-indigo-600 px-3 py-2 font-medium text-white hover:bg-indigo-500">
+          <button disabled={loading} className={btnPrimary}>
             {loading ? "מתחבר..." : "התחברות"}
           </button>
         </form>
