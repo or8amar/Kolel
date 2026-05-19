@@ -13,6 +13,7 @@ import {
   translateApiError,
 } from "@/lib/labels";
 import { supabase } from "@/lib/supabase/client";
+import { fieldInput, fieldSelect } from "@/lib/ui";
 import type { Contact, Donation, PaymentPotential, StatusHistory } from "@/lib/types";
 
 export default function PotentialDetailsPage() {
@@ -174,7 +175,20 @@ export default function PotentialDetailsPage() {
             <div className="grid gap-2 text-sm">
               <p>שם: {contact?.fullName ?? "-"}</p>
               <p>אימייל: {contact?.email ?? "-"}</p>
-              <p>טלפונים: {contact?.phones?.join(", ") || "-"}</p>
+              <p>
+                טלפונים:{" "}
+                {contact?.phones?.length ? (
+                  <span className="inline-flex flex-wrap gap-2">
+                    {contact.phones.map((phone) => (
+                      <a key={phone} href={`tel:${phone}`} className="text-indigo-600 underline">
+                        {phone}
+                      </a>
+                    ))}
+                  </span>
+                ) : (
+                  "-"
+                )}
+              </p>
               <p>סטטוס נוכחי: {potential ? formatPotentialStatus(potential.status) : "-"}</p>
               <p>מעקב הבא: {formatDate(potential?.nextFollowUpAt ?? null)}</p>
               <p>אחראי: {responsibleName ?? "לא הוגדר"}</p>
@@ -189,10 +203,10 @@ export default function PotentialDetailsPage() {
                 value={responsibleSearch}
                 onChange={(e) => setResponsibleSearch(e.target.value)}
                 placeholder="חיפוש לפי שם..."
-                className="rounded-lg border p-2 text-sm"
+                className={fieldInput}
               />
               <select
-                className="rounded-lg border p-2 text-sm"
+                className={fieldSelect}
                 disabled={savingResponsible || loadingResponsibleOptions}
                 value={contact?.responsibleContactId ?? ""}
                 onChange={(e) => void saveResponsible(e.target.value || null)}

@@ -8,6 +8,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { buildFullName, parsePhoneInput } from "@/lib/contact-create";
 import { buildPhoneIndex, findPhoneDuplicate, type ContactPhoneLookup } from "@/lib/duplicate-contacts";
 import { translateApiError } from "@/lib/labels";
+import { btnPrimary, fieldInput } from "@/lib/ui";
 import { supabase } from "@/lib/supabase/client";
 
 export default function AddContactPage() {
@@ -91,14 +92,14 @@ export default function AddContactPage() {
             </Link>
           </div>
 
-          <form onSubmit={onSubmit} className="grid max-w-lg gap-3 rounded-xl border p-4">
+          <form onSubmit={onSubmit} className="grid gap-3 rounded-xl border p-4">
             <label className="grid gap-1 text-sm">
               <span>שם פרטי *</span>
               <input
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="rounded-lg border p-2"
+                className={fieldInput}
                 required
               />
             </label>
@@ -108,7 +109,7 @@ export default function AddContactPage() {
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="rounded-lg border p-2"
+                className={fieldInput}
               />
             </label>
             <label className="grid gap-1 text-sm">
@@ -118,14 +119,14 @@ export default function AddContactPage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="050-1234567"
-                className="rounded-lg border p-2"
+                className={fieldInput}
                 required
               />
             </label>
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-indigo-600 px-3 py-2 text-white hover:bg-indigo-500 disabled:bg-slate-300"
+              className={btnPrimary}
             >
               {saving ? "שומר..." : "שמירה ויצירת פוטנציאל"}
             </button>
