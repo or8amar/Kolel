@@ -10,7 +10,7 @@ export interface ImportedContact {
 
 export async function importFromBrowserContacts(): Promise<ImportedContact[]> {
   if (!("contacts" in navigator) || !("ContactsManager" in window)) {
-    throw new Error("Browser Contacts API לא נתמך בדפדפן זה.");
+    throw new Error("ממשק אנשי הקשר של הדפדפן לא נתמך בדפדפן זה.");
   }
 
   const contacts = await (navigator as Navigator & { contacts: ContactsManager }).contacts.select(["name", "email", "tel"], {
@@ -87,33 +87,88 @@ export async function parseExcelContacts(file: File): Promise<ImportedContact[]>
   return dedupeImported(all);
 }
 
+/** Normalize CR/LF so pasted lists from Excel/WhatsApp split into one row per contact. */
+export function normalizeImportText(text: string): string {
+  return stripBom(text).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
+/** Extract phone-like tokens without nested quantifiers that can blow the stack on long lines. */
+const PASTED_PHONE_PATTERN =
+  /(?:\+972|0)(?:[\s\-().]*\d){8,12}|\+?\d[\d\s\-().]{6,}\d|(?<!\d)\d{9,10}(?!\d)/g;
+
+/** True when a token looks like a phone number (incl. Israeli numbers without a leading 0). */
+function looksLikePhoneToken(raw: string, normalized: string): boolean {
+  if (normalized.length < 7 || normalized.length > 15) return false;
+  if (!/^\+?\d+$/.test(normalized)) return false;
+  return /[\d]/.test(raw);
+}
+
+/** Parse Excel-style tab rows: firstName, lastName, phone (or name + phone). */
+export function parseTabSeparatedLine(line: string): ImportedContact | null {
+  if (!/\t/.test(line)) return null;
+
+  const cols = line.split("\t").map((c) => c.trim());
+  while (cols.length > 0 && !cols[cols.length - 1]) cols.pop();
+  if (cols.length < 2) return null;
+
+  const lastCol = cols[cols.length - 1] ?? "";
+  const lastNormalized = normalizePhone(lastCol);
+  const lastIsPhone = looksLikePhoneToken(lastCol, lastNormalized);
+
+  const phones: string[] = [];
+  let nameParts: string[];
+
+  if (cols.length >= 3 || (cols.length === 2 && lastIsPhone)) {
+    if (lastIsPhone) {
+      phones.push(lastNormalized);
+      nameParts = cols.slice(0, -1);
+    } else {
+      nameParts = cols;
+    }
+  } else {
+    nameParts = cols;
+  }
+
+  const fullName = nameParts.filter(Boolean).join(" ").trim();
+  if (!fullName && !phones.length) return null;
+
+  return {
+    fullName: fullName || phones[0] || "",
+    phones: dedupeStrings(phones),
+    source: "manual",
+  };
+}
+
 export function parsePastedText(text: string): ImportedContact[] {
-  const cleaned = stripBom(text).replace(/\r\n/g, "\n");
-  const lines = cleaned.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lines = normalizeImportText(text)
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
 
   const out: ImportedContact[] = [];
   for (const line of lines) {
+    const tabbed = parseTabSeparatedLine(line);
+    if (tabbed) {
+      out.push(tabbed);
+      continue;
+    }
+
     const phones: string[] = [];
-    const phoneRegex = /(\+?\d[\d\s\-().]{6,})/g;
-    let match: RegExpExecArray | null;
-    let nameAccum = line;
-    while ((match = phoneRegex.exec(line)) !== null) {
+    for (const match of line.matchAll(PASTED_PHONE_PATTERN)) {
       const normalized = normalizePhone(match[0]);
       if (normalized.length >= 7) phones.push(normalized);
     }
+
+    let nameAccum = line;
     if (phones.length) {
-      for (const phone of phones) {
-        const original = phone;
-        nameAccum = nameAccum.replace(/(\+?\d[\d\s\-().]{6,})/g, "");
-        if (!original) break;
-      }
+      nameAccum = line.replace(PASTED_PHONE_PATTERN, " ");
     }
     const fullName = nameAccum
       .replace(/[,\t;:|]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
 
-    const finalName = fullName || (phones[0] ? phones[0] : "");
+    const finalName = fullName || phones[0] || "";
     if (!finalName) continue;
 
     out.push({

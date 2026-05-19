@@ -1,4 +1,4 @@
-import type { DonationType, PlanFrequency } from "@/lib/types";
+import type { DonationType, PaymentMethod, PlanFrequency } from "@/lib/types";
 
 export interface DonationFormInput {
   contactId: string;
@@ -6,6 +6,8 @@ export interface DonationFormInput {
   type: DonationType;
   paidAt: string;
   currency: string;
+  paymentMethod: PaymentMethod;
+  paymentMethodOther?: string;
   enteredBy?: string;
   frequency?: PlanFrequency;
   startDate?: string;
@@ -16,6 +18,10 @@ export function validateDonationInput(input: DonationFormInput): string | null {
   if (!input.contactId) return "יש לבחור איש קשר.";
   if (!input.amount || Number.isNaN(input.amount) || input.amount <= 0) return "סכום חייב להיות גדול מ-0.";
   if (!input.paidAt) return "יש להזין תאריך תשלום.";
+  if (!input.paymentMethod) return "יש לבחור אמצעי תשלום.";
+  if (input.paymentMethod === "other" && !input.paymentMethodOther?.trim()) {
+    return "יש לפרט את אמצעי התשלום כשבוחרים «אחר».";
+  }
   if (input.type === "recurring") {
     if (!input.frequency) return "יש לבחור תדירות לתשלום מחזורי.";
     if (!input.startDate) return "יש להזין תאריך התחלה למסלול מחזורי.";

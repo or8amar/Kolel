@@ -13,16 +13,31 @@ import {
   parsePastedText,
   parseVcfContacts,
 } from "@/lib/contacts-import";
+import { buildPhoneIndex, findPhoneDuplicate, type ContactPhoneLookup } from "@/lib/duplicate-contacts";
+import { formatContactSource, translateApiError } from "@/lib/labels";
 import { supabase } from "@/lib/supabase/client";
 import type { ImportedContact } from "@/lib/contacts-import";
 
-const BATCH_SIZE = 200;
+const BATCH_SIZE = 12;
+const BATCH_DELAY_MS = 350;
+const SINGLE_ROW_DELAY_MS = 120;
+const EXISTING_PAGE_SIZE = 1000;
+const RATE_LIMIT_MAX_RETRIES = 6;
+const RATE_LIMIT_INITIAL_BACKOFF_MS = 1000;
+const RATE_LIMIT_MAX_BACKOFF_MS = 16000;
 
 type TabKey = "files" | "paste" | "manual";
+
+interface DuplicateSkip {
+  name: string;
+  contactId: string;
+  phone: string;
+}
 
 interface ImportSummary {
   imported: number;
   skippedDuplicates: number;
+  duplicateDetails: DuplicateSkip[];
   failed: number;
   errors: string[];
 }
@@ -88,12 +103,12 @@ export default function ImportContactsPage() {
         } else if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
           all.push(...(await parseExcelContacts(file)));
         } else {
-          setError(`קובץ לא נתמך: ${file.name}. נתמכים: CSV, VCF, XLSX, XLS, JSON.`);
+          setError(`קובץ לא נתמך: ${file.name}. נתמכים: CSV, VCF, Excel ‏(XLSX/XLS)‏ ו-JSON.`);
           return;
         }
       }
     } catch (e) {
-      setError((e as Error).message);
+      setError(translateApiError((e as Error).message));
       return;
     }
     applyParsed(all);
@@ -106,8 +121,12 @@ export default function ImportContactsPage() {
       setError("הדבק רשימה לפני הניתוח.");
       return;
     }
-    const rows = parsePastedText(pastedText);
-    applyParsed(rows);
+    try {
+      const rows = parsePastedText(pastedText);
+      applyParsed(rows);
+    } catch (e) {
+      setError(translateApiError((e as Error).message || "שגיאה בניתוח הרשימה."));
+    }
   }
 
   function handleManualAdd() {
@@ -146,7 +165,7 @@ export default function ImportContactsPage() {
       const rows = await importFromBrowserContacts();
       applyParsed(rows);
     } catch (e) {
-      setError((e as Error).message);
+      setError(translateApiError((e as Error).message));
     }
   }
 
@@ -163,32 +182,52 @@ export default function ImportContactsPage() {
     let failed = 0;
 
     try {
-      const { data: existing, error: existingError } = await supabase
-        .from("contacts")
-        .select("fullName, phones, email");
-      if (existingError) throw new Error(existingError.message);
+      const existingKeys = new Set<string>();
+      const existingContacts: ContactPhoneLookup[] = [];
+      for (let from = 0; ; from += EXISTING_PAGE_SIZE) {
+        const { data: page, error: existingError } = await withRateLimitRetry(async () =>
+          await supabase
+            .from("contacts")
+            .select("id, fullName, phones, email")
+            .range(from, from + EXISTING_PAGE_SIZE - 1),
+        );
+        if (existingError) throw new Error(translateApiError(existingError.message ?? "שגיאה בטעינת אנשי קשר קיימים"));
+        const rows = page ?? [];
+        for (const c of rows) {
+          const row = c as ContactPhoneLookup & { email?: string | null };
+          existingContacts.push(row);
+          existingKeys.add(
+            makeContactKey(row.fullName ?? "", row.phones ?? [], row.email ?? null),
+          );
+        }
+        if (rows.length < EXISTING_PAGE_SIZE) break;
+      }
 
-      const existingKeys = new Set(
-        (existing ?? []).map((c) =>
-          makeContactKey(
-            (c as { fullName: string }).fullName ?? "",
-            (c as { phones?: string[] | null }).phones ?? [],
-            (c as { email?: string | null }).email ?? null,
-          ),
-        ),
-      );
-
+      const phoneIndex = buildPhoneIndex(existingContacts);
+      const duplicateDetails: DuplicateSkip[] = [];
       const toInsert: ImportedContact[] = [];
+
       for (const c of parsed) {
+        const phoneDup = findPhoneDuplicate(c.phones, phoneIndex);
+        if (phoneDup) {
+          skipped += 1;
+          duplicateDetails.push({
+            name: phoneDup.fullName,
+            contactId: phoneDup.contactId,
+            phone: phoneDup.matchedPhone,
+          });
+          continue;
+        }
         if (existingKeys.has(makeContactKey(c.fullName, c.phones, c.email))) {
           skipped += 1;
-        } else {
-          toInsert.push(c);
+          continue;
         }
+        toInsert.push(c);
       }
 
       for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
         const batch = toInsert.slice(i, i + BATCH_SIZE);
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1;
         const payload = batch.map((row) => ({
           externalContactId: row.externalContactId ?? null,
           fullName: row.fullName,
@@ -197,45 +236,40 @@ export default function ImportContactsPage() {
           source: row.source,
         }));
 
-        const { data: inserted, error: insertError } = await supabase
-          .from("contacts")
-          .insert(payload)
-          .select("id");
-
-        if (insertError) {
+        const insertedIds = await insertContactsBatch(payload, batchNum, errors);
+        if (!insertedIds.length) {
           failed += batch.length;
-          errors.push(`קבוצה ${Math.floor(i / BATCH_SIZE) + 1}: ${insertError.message}`);
+          setProgress({ done: skipped + imported + failed, total: parsed.length });
+          if (i + BATCH_SIZE < toInsert.length) await sleep(BATCH_DELAY_MS);
           continue;
         }
 
-        const potentialsPayload = (inserted ?? []).map((item) => ({
-          contactId: (item as { id: string }).id,
-          status: "new_potential" as const,
-          priority: 3,
+        const potentialsPayload = insertedIds.map((contactId) => ({
+          contactId,
+          status: "new" as const,
           notes: null,
           nextFollowUpAt: new Date().toISOString(),
         }));
 
         if (potentialsPayload.length) {
-          const { error: potError } = await supabase
-            .from("payment_potentials")
-            .insert(potentialsPayload);
+          const potError = await insertPotentialsBatch(potentialsPayload, batchNum, errors);
           if (potError) {
-            errors.push(
-              `קבוצה ${Math.floor(i / BATCH_SIZE) + 1}: שגיאה ביצירת פוטנציאלים - ${potError.message}`,
-            );
+            errors.push(`קבוצה ${batchNum}: שגיאה ביצירת פוטנציאלים — ${translateApiError(potError.message ?? "")}`);
           }
         }
 
-        imported += inserted?.length ?? 0;
+        imported += insertedIds.length;
+        failed += batch.length - insertedIds.length;
         setProgress({ done: skipped + imported + failed, total: parsed.length });
+
+        if (i + BATCH_SIZE < toInsert.length) await sleep(BATCH_DELAY_MS);
       }
 
-      setSummary({ imported, skippedDuplicates: skipped, failed, errors });
+      setSummary({ imported, skippedDuplicates: skipped, duplicateDetails, failed, errors });
       setParsed([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (e) {
-      setError((e as Error).message);
+      setError(translateApiError((e as Error).message));
     } finally {
       setRunning(false);
     }
@@ -261,7 +295,7 @@ export default function ImportContactsPage() {
 
           <div className="flex flex-wrap gap-2 border-b">
             <TabBtn active={tab === "files"} onClick={() => setTab("files")}>
-              מקבצים (CSV / VCF / Excel / JSON)
+              מקבצים
             </TabBtn>
             <TabBtn active={tab === "paste"} onClick={() => setTab("paste")}>
               הדבקת רשימה
@@ -283,7 +317,7 @@ export default function ImportContactsPage() {
               >
                 <p>גרור לכאן קבצים או בחר ידנית</p>
                 <p className="text-xs text-slate-500">
-                  נתמכים: Google CSV, Outlook CSV, VCF (גם WhatsApp), Excel (.xlsx/.xls), JSON
+                  נתמכים: ייצוא מגוגל או אאוטלוק (CSV), כרטיסי איש קשר (VCF, כולל וואטסאפ), Excel (.xlsx/.xls), JSON
                 </p>
                 <input
                   ref={fileInputRef}
@@ -299,7 +333,7 @@ export default function ImportContactsPage() {
 
               <div className="rounded-xl border p-4">
                 <p className="mb-3 text-sm text-slate-600">
-                  ייבוא דרך Browser Contacts API (זמין רק ב-Chrome ב-Android).
+                  ייבוא דרך ממשק אנשי הקשר של הדפדפן (זמין בכרום באנדרואיד בלבד).
                 </p>
                 <button
                   disabled={!canUseBrowserApi || running}
@@ -309,7 +343,7 @@ export default function ImportContactsPage() {
                   ייבוא מאנשי הקשר בדפדפן
                 </button>
                 {!canUseBrowserApi ? (
-                  <p className="mt-2 text-sm text-amber-700">הדפדפן הנוכחי לא תומך ב-Browser Contacts API.</p>
+                  <p className="mt-2 text-sm text-amber-700">הדפדפן הנוכחי לא תומך בממשק אנשי הקשר של הדפדפן.</p>
                 ) : null}
               </div>
             </div>
@@ -318,12 +352,15 @@ export default function ImportContactsPage() {
           {tab === "paste" ? (
             <div className="grid gap-3">
               <p className="text-sm text-slate-600">
-                הדבק רשימה - שורה לכל איש קשר. ניתן להדביק שמות + טלפונים מ-WhatsApp, Excel, או טקסט חופשי.
+                הדבק רשימה — שורה לכל איש קשר. ניתן להדביק מאקסל (עמודות מופרדות בטאב: שם פרטי, שם משפחה,
+                טלפון), מוואטסאפ, או טקסט חופשי.
               </p>
               <textarea
                 value={pastedText}
                 onChange={(e) => setPastedText(e.target.value)}
-                placeholder={"לדוגמה:\nישראל ישראל 050-1234567\n054-1111111 דוד כהן\nאהרון לוי, +972527654321"}
+                placeholder={
+                  "לדוגמה (טאבים בין עמודות מאקסל):\nשמואל\tעזרן\t546671443\nישראל\tישראלי\t0501234567\n\nאו טקסט חופשי:\nדוד כהן 054-1111111"
+                }
                 rows={10}
                 className="w-full rounded-lg border p-3 font-mono text-sm"
               />
@@ -408,7 +445,7 @@ export default function ImportContactsPage() {
                         <td className="px-3 py-2">{row.fullName}</td>
                         <td className="px-3 py-2 text-slate-600">{row.phones.join(", ") || "-"}</td>
                         <td className="px-3 py-2 text-slate-600">{row.email ?? "-"}</td>
-                        <td className="px-3 py-2 text-slate-500">{row.source}</td>
+                        <td className="px-3 py-2 text-slate-500">{formatContactSource(row.source)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -439,6 +476,21 @@ export default function ImportContactsPage() {
                 <li>דולגו (כפילויות): {summary.skippedDuplicates}</li>
                 <li>נכשלו: {summary.failed}</li>
               </ul>
+              {summary.duplicateDetails.length > 0 ? (
+                <ul className="mt-2 grid gap-1 text-sm text-amber-800">
+                  {summary.duplicateDetails.slice(0, 20).map((dup, i) => (
+                    <li key={`${dup.contactId}-${dup.phone}-${i}`}>
+                      טלפון {dup.phone} כבר קיים:{" "}
+                      <a href={`/potentials/${dup.contactId}`} className="font-medium text-indigo-600 underline">
+                        {dup.name}
+                      </a>
+                    </li>
+                  ))}
+                  {summary.duplicateDetails.length > 20 ? (
+                    <li>ועוד {summary.duplicateDetails.length - 20} כפילויות...</li>
+                  ) : null}
+                </ul>
+              ) : null}
               {summary.errors.length > 0 ? (
                 <details className="mt-2 text-xs text-rose-700">
                   <summary className="cursor-pointer">פרטי שגיאות ({summary.errors.length})</summary>
@@ -455,6 +507,107 @@ export default function ImportContactsPage() {
       </AppShell>
     </AuthGuard>
   );
+}
+
+type ContactInsertPayload = {
+  externalContactId: string | null;
+  fullName: string;
+  phones: string[];
+  email: string | null;
+  source: ImportedContact["source"];
+};
+
+type PotentialInsertPayload = {
+  contactId: string;
+  status: "new";
+  notes: null;
+  nextFollowUpAt: string;
+};
+
+type SupabaseErrorLike = {
+  message?: string;
+  code?: string;
+  status?: number;
+};
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRateLimitError(error: SupabaseErrorLike | null | undefined): boolean {
+  if (!error) return false;
+  const msg = (error.message ?? "").toLowerCase();
+  return (
+    error.status === 429 ||
+    error.code === "429" ||
+    msg.includes("rate limit") ||
+    msg.includes("too many requests") ||
+    msg.includes("over_request_rate_limit")
+  );
+}
+
+async function withRateLimitRetry<T>(
+  operation: () => Promise<{ data: T | null; error: SupabaseErrorLike | null }>,
+): Promise<{ data: T | null; error: SupabaseErrorLike | null }> {
+  let backoff = RATE_LIMIT_INITIAL_BACKOFF_MS;
+  let result = await operation();
+
+  for (let attempt = 0; attempt < RATE_LIMIT_MAX_RETRIES && isRateLimitError(result.error); attempt += 1) {
+    await sleep(backoff);
+    backoff = Math.min(backoff * 2, RATE_LIMIT_MAX_BACKOFF_MS);
+    result = await operation();
+  }
+
+  return result;
+}
+
+async function insertContactsBatch(
+  payload: ContactInsertPayload[],
+  batchNum: number,
+  errors: string[],
+  isRetry = false,
+): Promise<string[]> {
+  const { data: inserted, error: insertError } = await withRateLimitRetry(async () =>
+    await supabase.from("contacts").insert(payload).select("id"),
+  );
+
+  if (!insertError) {
+    return (inserted ?? []).map((item) => (item as { id: string }).id);
+  }
+
+  if (isRateLimitError(insertError)) {
+    errors.push(`קבוצה ${batchNum}: מגבלת קצב (נסיונות חוזרים נכשלו) — ${translateApiError(insertError.message ?? "")}`);
+    return [];
+  }
+
+  if (payload.length === 1) {
+    errors.push(`קבוצה ${batchNum}: ${translateApiError(insertError.message ?? "")}`);
+    return [];
+  }
+
+  const ids: string[] = [];
+  for (const row of payload) {
+    ids.push(...(await insertContactsBatch([row], batchNum, errors, true)));
+    await sleep(SINGLE_ROW_DELAY_MS);
+  }
+  if (!ids.length && !isRetry) {
+    errors.push(`קבוצה ${batchNum}: ${translateApiError(insertError.message ?? "")}`);
+  }
+  return ids;
+}
+
+async function insertPotentialsBatch(
+  payload: PotentialInsertPayload[],
+  batchNum: number,
+  errors: string[],
+): Promise<SupabaseErrorLike | null> {
+  const { error } = await withRateLimitRetry(async () =>
+    await supabase.from("payment_potentials").insert(payload),
+  );
+  if (error && isRateLimitError(error)) {
+    errors.push(`קבוצה ${batchNum}: מגבלת קצב ביצירת פוטנציאלים - ${error.message}`);
+  }
+  return error;
 }
 
 function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
