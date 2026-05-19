@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AuthGuard } from "@/components/auth-guard";
+import { FilterChips } from "@/components/filter-chips";
+import { ListRowCard } from "@/components/list-row-card";
 import { formatPotentialStatus, translateApiError } from "@/lib/labels";
 import { fieldSelect } from "@/lib/ui";
 import {
@@ -25,6 +27,39 @@ interface PotentialRow {
   contactName: string;
   contactEmail: string | null;
   responsibleName: string | null;
+}
+
+function statusSelect(
+  item: PotentialRow,
+  onUpdate: (item: PotentialRow, status: PotentialStatus) => void,
+  compact?: boolean,
+) {
+  return (
+    <select
+      value={item.status}
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => void onUpdate(item, e.target.value as PotentialStatus)}
+      className={
+        compact
+          ? "max-w-[7.5rem] rounded-full border border-line bg-cream px-2 py-1.5 text-xs font-medium text-ink"
+          : "rounded-lg border p-1"
+      }
+      aria-label={`סטטוס ${item.contactName}`}
+    >
+      {ACTIVE_POTENTIAL_STATUSES.map((status) => (
+        <option key={status} value={status}>
+          {formatPotentialStatus(status)}
+        </option>
+      ))}
+      <optgroup label="סגירה">
+        {CLOSED_POTENTIAL_STATUSES.map((status) => (
+          <option key={status} value={status}>
+            {formatPotentialStatus(status)}
+          </option>
+        ))}
+      </optgroup>
+    </select>
+  );
 }
 
 export default function PotentialsPage() {
@@ -58,7 +93,7 @@ export default function PotentialsPage() {
       const contact = contacts.get(item.contactId);
       const responsible =
         contact?.responsibleContactId != null
-          ? contacts.get(contact.responsibleContactId)?.fullName ?? null
+          ? (contacts.get(contact.responsibleContactId)?.fullName ?? null)
           : null;
       return {
         id: item.id,
@@ -105,82 +140,47 @@ export default function PotentialsPage() {
     <AuthGuard>
       <AppShell>
         <div className="grid gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-xl font-bold">ניהול פוטנציאלים</h2>
-            <div className="flex flex-wrap items-center gap-2">
-              <Link href="/contacts" className="text-sm text-navy hover:text-navy-light">
-                כל אנשי הקשר
-              </Link>
-              <select
-                className={`${fieldSelect} max-w-full text-sm md:max-w-xs`}
-                value={listFilter}
-                onChange={(e) => setListFilter(e.target.value as ListFilter)}
-              >
-                <option value="active">פעילים (חדש / פוטנציאל / גבוה)</option>
-                <option value="archive">ארכיון (שילם / סירב / לא מעוניין)</option>
-                <option value="all">הכל</option>
-              </select>
-            </div>
-          </div>
+          <h2 className="hidden text-xl font-bold md:block">ניהול פוטנציאלים</h2>
+
+          <FilterChips
+            value={listFilter}
+            onChange={setListFilter}
+            options={[
+              { value: "all", label: "הכל" },
+              { value: "active", label: "פעילים", icon: "📋" },
+              { value: "archive", label: "ארכיון", icon: "✅" },
+            ]}
+          />
+
+          <select
+            className={`${fieldSelect} hidden max-w-xs text-sm md:block`}
+            value={listFilter}
+            onChange={(e) => setListFilter(e.target.value as ListFilter)}
+          >
+            <option value="active">פעילים (חדש / פוטנציאל / גבוה)</option>
+            <option value="archive">ארכיון (שילם / סירב / לא מעוניין)</option>
+            <option value="all">הכל</option>
+          </select>
 
           {loading ? <p className="rounded-lg bg-cream p-4 text-ink-mid">טוען פוטנציאלים...</p> : null}
 
-          <ul className="grid gap-3 md:hidden">
+          <ul className="md:hidden">
             {filtered.map((item) => (
-              <li key={item.id} className="rounded-xl border bg-white p-4 shadow-sm">
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-semibold text-ink">{item.contactName}</p>
-                    {item.contactEmail ? (
-                      <p className="text-sm text-ink-mid">{item.contactEmail}</p>
-                    ) : null}
-                  </div>
-                  <Link
-                    href={`/potentials/${item.contactId}`}
-                    className="shrink-0 rounded-lg bg-gold-pale px-3 py-2 text-sm font-medium text-navy"
-                  >
-                    כרטיס
-                  </Link>
-                </div>
-                <dl className="mb-3 grid gap-1 text-sm text-ink-mid">
-                  <div className="flex justify-between gap-2">
-                    <dt>אחראי</dt>
-                    <dd>{item.responsibleName ?? "—"}</dd>
-                  </div>
-                  <div className="flex justify-between gap-2">
-                    <dt>מעקב הבא</dt>
-                    <dd>
-                      {item.nextFollowUpAt
-                        ? new Date(item.nextFollowUpAt).toLocaleDateString("he-IL")
-                        : "—"}
-                    </dd>
-                  </div>
-                </dl>
-                <label className="grid gap-1 text-sm">
-                  <span className="text-ink-mid">סטטוס</span>
-                  <select
-                    value={item.status}
-                    onChange={(e) => void updateStatus(item, e.target.value as PotentialStatus)}
-                    className={fieldSelect}
-                  >
-                    {ACTIVE_POTENTIAL_STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {formatPotentialStatus(status)}
-                      </option>
-                    ))}
-                    <optgroup label="סגירה">
-                      {CLOSED_POTENTIAL_STATUSES.map((status) => (
-                        <option key={status} value={status}>
-                          {formatPotentialStatus(status)}
-                        </option>
-                      ))}
-                    </optgroup>
-                  </select>
-                </label>
-              </li>
+              <ListRowCard
+                key={item.id}
+                title={item.contactName}
+                subtitle={
+                  item.nextFollowUpAt
+                    ? `מעקב: ${new Date(item.nextFollowUpAt).toLocaleDateString("he-IL")}`
+                    : item.contactEmail
+                }
+                href={`/potentials/${item.contactId}`}
+                meta={item.responsibleName ? <span>אחראי: {item.responsibleName}</span> : null}
+                trailing={statusSelect(item, updateStatus, true)}
+              />
             ))}
             {!loading && !filtered.length ? (
-              <li className="rounded-xl border p-4 text-center text-ink-light">לא נמצאו תוצאות.</li>
+              <li className="list-row p-4 text-center text-ink-light">לא נמצאו תוצאות.</li>
             ) : null}
           </ul>
 
@@ -205,26 +205,7 @@ export default function PotentialsPage() {
                     <td className="p-2">
                       {item.nextFollowUpAt ? new Date(item.nextFollowUpAt).toLocaleDateString("he-IL") : "-"}
                     </td>
-                    <td className="p-2">
-                      <select
-                        value={item.status}
-                        onChange={(e) => void updateStatus(item, e.target.value as PotentialStatus)}
-                        className="rounded-lg border p-1"
-                      >
-                        {ACTIVE_POTENTIAL_STATUSES.map((status) => (
-                          <option key={status} value={status}>
-                            {formatPotentialStatus(status)}
-                          </option>
-                        ))}
-                        <optgroup label="סגירה">
-                          {CLOSED_POTENTIAL_STATUSES.map((status) => (
-                            <option key={status} value={status}>
-                              {formatPotentialStatus(status)}
-                            </option>
-                          ))}
-                        </optgroup>
-                      </select>
-                    </td>
+                    <td className="p-2">{statusSelect(item, updateStatus)}</td>
                     <td className="p-2">
                       <Link href={`/potentials/${item.contactId}`} className="text-navy hover:text-navy-light">
                         פתיחה
