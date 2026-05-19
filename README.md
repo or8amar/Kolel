@@ -2,74 +2,74 @@
 
 מערכת WEB לניהול אנשי קשר, פוטנציאל תשלום, הזנת תרומות ודשבורד KPI.
 
-## סטאק טכנולוגי
+## סטאק
 
-- Frontend: `Next.js (App Router) + TypeScript + Tailwind`
-- Backend: `Supabase (Auth + Postgres + RLS)`
-- Deploy: `Netlify`
+- **Frontend:** Next.js (App Router) + TypeScript + Tailwind — `web/`
+- **Backend:** Supabase Cloud (Auth + Postgres + RLS)
+- **Deploy:** Netlify, ענף **`main`** = פרודקשן
 
-## מה קיים בפרויקט
+## סביבה אחת
 
-- `web/` אפליקציית Next.js מלאה
-- `supabase/migrations/` סכמת DB מלאה עם RLS לאדמין יחיד
-- `supabase/seed.sql` נתוני דמה מגוונים
-- `netlify.toml` קונפיג בילד בסיסי ל-Next.js
+אין סביבת dev נפרדת ב-Docker. **פרויקט Supabase אחד בענן** משמש גם לפיתוח מקומי (`npm run dev`) וגם לאתר ב-Netlify.
 
-## הרצה לוקאלית על Windows (צעד-אחר-צעד)
+> פיתוח מקומי כותב לאותו DB כמו האתר החי. היזהר בשינויים הרסניים.
+
+## מה יש בפרויקט
+
+| נתיב | תיאור |
+|------|--------|
+| `web/` | אפליקציית Next.js |
+| `supabase/migrations/` | סכמת DB + RLS (אדמין יחיד) |
+| `supabase/seed.sql` | נתוני דמה (אופציונלי, לא לפרודקשן) |
+| `netlify.toml` | בילד Netlify |
+| `docs/WORK_PLAN.md` | תוכנית עבודה לשימוש ראשון |
+| `docs/SMOKE_TEST.md` | בדיקות ידניות |
+
+## התחלה מהירה (Windows)
 
 ### 1) דרישות
 
-1. התקן `Node.js 20+`
-2. התקן `npm`
-3. התקן `Supabase CLI`
-4. (אופציונלי) התקן `Netlify CLI`
+- Node.js 20+ (`web/.nvmrc`)
+- npm
+- [Supabase CLI](https://supabase.com/docs/guides/cli) — רק ל-`db push`, **לא** חובה להריץ `supabase start`
 
-### 2) הכנת משתני סביבה
+### 2) Supabase Cloud (פעם אחת)
 
-1. מהרוט של הפרויקט (`c:\Repos\Kolel`) הרץ:
+1. צור פרויקט ב-[supabase.com/dashboard](https://supabase.com/dashboard).
+2. העלה migrations:
+   ```powershell
+   supabase login
+   cd c:\Repos\Kolel
+   supabase link --project-ref <PROJECT_REF>
+   supabase db push
+   ```
+3. צור משתמש Auth: `turgnr7@gmail.com` (Auto Confirm) — ראה [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md).
+
+### 3) משתני סביבה מקומיים
 
 ```powershell
+cd c:\Repos\Kolel\web
 copy .env.local.example .env.local
 ```
 
-2. עדכן את ערכי ה-keys ב-`.env.local` לפי פלט `supabase start`.
+ערוך `web\.env.local` — הדבק מ-**Project Settings → API**:
 
-### 3) התקנת תלויות לאפליקציית WEB
+- `NEXT_PUBLIC_SUPABASE_URL` — Project URL (למשל `https://xxxxx.supabase.co`)
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — מפתח `anon` `public`
+
+אם הקובץ כבר קיים עם `http://127.0.0.1:54321` — **החלף** בערכי הענן מהדשבורד.
+
+### 4) הרצה
 
 ```powershell
 cd c:\Repos\Kolel\web
 npm install
-```
-
-### 4) הכנת Supabase מקומי
-
-```powershell
-cd c:\Repos\Kolel
-supabase db reset --local
-```
-
-הפקודה מריצה את כל ה-`migrations` ואת `supabase/seed.sql`.
-
-### 5) יצירת משתמש אדמין ב-Auth
-
-צור משתמש עם אימייל שקיים ב-`app_admins` (ברירת מחדל: `turgnr7@gmail.com`):
-
-```powershell
-supabase auth users create --email turgnr7@gmail.com --password Admin123!
-```
-
-אם הפקודה לא זמינה בגרסה שלך, ניתן ליצור דרך Supabase Studio המקומי.
-
-### 6) הרצת האפליקציה
-
-```powershell
-cd c:\Repos\Kolel\web
 npm run dev
 ```
 
-פתח בדפדפן: `http://localhost:3000`
+פתח: `http://localhost:3000/login`
 
-### 7) בדיקות בסיסיות
+### 5) בדיקות בילד
 
 ```powershell
 cd c:\Repos\Kolel\web
@@ -77,23 +77,56 @@ npm run typecheck
 npm run build
 ```
 
-## מסכים עיקריים
+## מסכים
 
-- `/login` התחברות אדמין
-- `/import` ייבוא אנשי קשר (Browser Contacts API + CSV/VCF fallback)
-- `/potentials` ניהול פוטנציאלים עם פילטרים ושינוי סטטוס
-- `/potentials/[id]` כרטיס איש קשר (פרטים + היסטוריית סטטוסים + תשלומים)
-- `/payments` הזנת תשלום ידנית (חד-פעמי/מחזורי)
-- `/` דשבורד KPI
+| נתיב | תפקיד |
+|------|--------|
+| `/login` | התחברות אדמין |
+| `/import` | ייבוא אנשי קשר |
+| `/potentials` | ניהול פוטנציאלים |
+| `/potentials/[id]` | כרטיס איש קשר |
+| `/payments` | הזנת תשלום |
+| `/` | דשבורד KPI |
 
-## Netlify
+## Netlify (פרודקשן)
 
-`netlify.toml` מוגדר עם:
-- `base = "web"`
-- build command: `npm run build`
-- plugin: `@netlify/plugin-nextjs`
+`netlify.toml`: `base = "web"`, `@netlify/plugin-nextjs`.
 
-יש להגדיר ב-Netlify Environment Variables:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
+1. חבר רפו GitHub, Production branch = **`main`**.
+2. Environment variables (Production):
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+3. אחרי Deploy — עדכן ב-Supabase **Authentication → URL Configuration** את כתובת האתר.
+
+פרטים: [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md).
+
+## תיעוד נוסף
+
+- [docs/WORK_PLAN.md](docs/WORK_PLAN.md)
+- [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md)
+
+## פתרון בעיות (פיתוח מקומי)
+
+### 404 על `/_next/static/chunks/main-app.js` או `app-pages-internals.js`
+
+בדרך כלל אחד משני מצבים:
+
+1. **מטמון `.next` לא תקין** (למשל אחרי `npm run build` או עצירה לא נקייה) — ה-HTML מפנה לקבצים שלא קיימים בדיסק.
+2. **גישה דרך IP ברשת** (למשל `http://192.168.50.31:3001`) בעוד שהשרת עלה על `localhost` — Next.js 15 חוסם בקשות cross-origin לנכסי dev (`allowedDevOrigins` ב-`web/next.config.ts`).
+
+**תיקון מיידי:**
+
+```powershell
+# עצור את כל תהליכי node (Ctrl+C בטרמינלים)
+cd c:\Repos\Kolel\web
+Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
+npm run dev
+```
+
+לגישה מהרשת המקומית:
+
+```powershell
+npx next dev -H 0.0.0.0 -p 3001
+```
+
+ואז `http://<IP-של-המחשב>:3001/contacts` (לא לערבב עם `next start` או בילד ישן).

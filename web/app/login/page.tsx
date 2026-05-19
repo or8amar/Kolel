@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { translateApiError } from "@/lib/labels";
 import { supabase } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -18,7 +19,7 @@ export default function LoginPage() {
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (authError) {
-      setError(authError.message);
+      setError(translateApiError(authError.message));
       return;
     }
     router.push("/");
@@ -29,7 +30,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-slate-100 p-4" dir="rtl">
       <div className="w-full max-w-md rounded-2xl border bg-white p-6 shadow-sm">
         <h1 className="mb-2 text-2xl font-bold">כניסת אדמין</h1>
-        <p className="mb-4 text-sm text-slate-600">התחברות דרך Supabase Auth</p>
+        <p className="mb-4 text-sm text-slate-600">התחברות למערכת הניהול</p>
         <form className="grid gap-3" onSubmit={onSubmit}>
           <input
             type="email"

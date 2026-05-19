@@ -12,61 +12,61 @@ with inserted_contacts as (
     ('ext-1005', 'יואב פרידמן', array['+972-58-2222222'], 'yoav@example.com', 'manual')
   returning id, "fullName"
 )
-insert into public.payment_potentials ("contactId", status, priority, notes, "nextFollowUpAt")
+insert into public.payment_potentials ("contactId", status, notes, "nextFollowUpAt")
 select
   id,
   case
-    when "fullName" = 'אהרון לוי' then 'new_potential'::public.potential_status
-    when "fullName" = 'משה כהן' then 'paying_active'::public.potential_status
-    when "fullName" = 'דוד מזרחי' then 'contacted'::public.potential_status
+    when "fullName" = 'אהרון לוי' then 'new'::public.potential_status
+    when "fullName" = 'משה כהן' then 'paid'::public.potential_status
+    when "fullName" = 'דוד מזרחי' then 'potential'::public.potential_status
     when "fullName" = 'שרה בן דוד' then 'not_interested'::public.potential_status
-    else 'lapsed_payer'::public.potential_status
-  end,
-  case
-    when "fullName" = 'אהרון לוי' then 5
-    when "fullName" = 'דוד מזרחי' then 4
-    else 2
+    else 'refused'::public.potential_status
   end,
   case
     when "fullName" = 'אהרון לוי' then 'דורש פגישת המשך'
     when "fullName" = 'דוד מזרחי' then 'מעוניין לשמוע על מסלול שנתי'
-    when "fullName" = 'יואב פרידמן' then 'משלם לשעבר שנעצר לפני 6 חודשים'
+    when "fullName" = 'יואב פרידמן' then 'סירב להמשיך בתרומה'
     else null
   end,
   now() + interval '3 day'
 from inserted_contacts;
 
-insert into public.donations ("contactId", amount, currency, type, "paidAt", "enteredBy")
-select id, 250.00, 'ILS', 'one_time', now() - interval '10 day', 'turgnr7@gmail.com'
+update public.contacts c
+set "responsibleContactId" = r.id
+from public.contacts r
+where c."fullName" = 'דוד מזרחי' and r."fullName" = 'אהרון לוי';
+
+insert into public.donations ("contactId", amount, currency, type, "paymentMethod", "paidAt", "enteredBy")
+select id, 250.00, 'ILS', 'one_time', 'credit', now() - interval '10 day', 'turgnr7@gmail.com'
 from public.contacts
 where "fullName" = 'אהרון לוי';
 
-insert into public.donations ("contactId", amount, currency, type, "paidAt", "enteredBy")
-select id, 180.00, 'ILS', 'recurring', now() - interval '2 day', 'turgnr7@gmail.com'
+insert into public.donations ("contactId", amount, currency, type, "paymentMethod", "paidAt", "enteredBy")
+select id, 180.00, 'ILS', 'recurring', 'bank', now() - interval '2 day', 'turgnr7@gmail.com'
 from public.contacts
 where "fullName" = 'משה כהן';
 
-insert into public.donations ("contactId", amount, currency, type, "paidAt", "enteredBy")
-select id, 1200.00, 'ILS', 'one_time', now() - interval '45 day', 'turgnr7@gmail.com'
+insert into public.donations ("contactId", amount, currency, type, "paymentMethod", "paidAt", "enteredBy")
+select id, 1200.00, 'ILS', 'one_time', 'nedarim_plus', now() - interval '45 day', 'turgnr7@gmail.com'
 from public.contacts
 where "fullName" = 'שרה בן דוד';
 
-insert into public.donation_plans ("contactId", frequency, "startDate", "endDate", "amountPerCycle", "isActive")
-select id, 'monthly', current_date - interval '90 day', null, 180.00, true
+insert into public.donation_plans ("contactId", frequency, "startDate", "endDate", "amountPerCycle", "isActive", "paymentMethod")
+select id, 'monthly', current_date - interval '90 day', null, 180.00, true, 'bank'
 from public.contacts
 where "fullName" = 'משה כהן';
 
-insert into public.donation_plans ("contactId", frequency, "startDate", "endDate", "amountPerCycle", "isActive")
-select id, 'yearly', current_date - interval '300 day', current_date - interval '10 day', 2400.00, false
+insert into public.donation_plans ("contactId", frequency, "startDate", "endDate", "amountPerCycle", "isActive", "paymentMethod", "paymentMethodOther")
+select id, 'yearly', current_date - interval '300 day', current_date - interval '10 day', 2400.00, false, 'other', 'המחאה'
 from public.contacts
 where "fullName" = 'יואב פרידמן';
 
 insert into public.status_history ("contactId", "fromStatus", "toStatus", "changedAt", reason)
-select id, null, 'new_potential', now() - interval '30 day', 'יצירה ראשונית'
+select id, null, 'new', now() - interval '30 day', 'יצירה ראשונית'
 from public.contacts
 where "fullName" = 'אהרון לוי';
 
 insert into public.status_history ("contactId", "fromStatus", "toStatus", "changedAt", reason)
-select id, 'contacted', 'paying_active', now() - interval '20 day', 'הצטרף למסלול חודשי'
+select id, 'potential', 'paid', now() - interval '20 day', 'הצטרף למסלול חודשי'
 from public.contacts
 where "fullName" = 'משה כהן';

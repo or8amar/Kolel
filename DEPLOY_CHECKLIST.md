@@ -1,204 +1,156 @@
-# Deploy Checklist - Kolel Payments Tracker
+# Deploy Checklist — Kolel Payments Tracker
 
-רשימת משימות מלאה להעלאת המערכת לאוויר.
-סדר הביצוע חשוב: קודם Supabase, אחר כך Git, ולבסוף Netlify.
+רשימה מינימלית להעלאת המערכת לאוויר.  
+**סביבה אחת:** Supabase Cloud + Netlify מענף `main`. אין Supabase מקומי ב-Docker.
+
+סדר: Supabase → משתני סביבה מקומיים → בדיקה מקומית → Git → Netlify → Smoke test.
 
 ---
 
-## שלב 0 - הכנות מקומיות
+## שלב 0 — הכנה (Windows)
 
-- [ ] להתקין `Node.js 20+`
-- [ ] להתקין `Git`
-- [ ] להתקין `Supabase CLI`
-- [ ] להתקין `Netlify CLI` (אופציונלי, אך מומלץ)
-- [ ] לוודא שהפרויקט בונה לוקאלית בהצלחה:
+- [ ] Node.js 20+
+- [ ] Git
+- [ ] [Supabase CLI](https://supabase.com/docs/guides/cli) (ל-`link` + `db push` בלבד)
+- [ ] בילד מקומי:
   ```powershell
   cd c:\Repos\Kolel\web
   npm install
+  npm run typecheck
   npm run build
   ```
 
 ---
 
-## שלב 1 - Supabase Cloud
+## שלב 1 — Supabase Cloud
 
-### 1.1 יצירת פרויקט בענן
-- [ ] להיכנס ל-[supabase.com](https://supabase.com)
-- [ ] ליצור פרויקט חדש (Region: `Frankfurt` או הקרוב אליך)
-- [ ] לשמור במקום בטוח את סיסמת ה-DB
-- [ ] להמתין שהפרויקט יסיים provisioning
+### 1.1 פרויקט
 
-### 1.2 איסוף מפתחות
-- [ ] להעתיק מ-`Project Settings → API`:
-  - [ ] `Project URL` → לשמור כ-`NEXT_PUBLIC_SUPABASE_URL`
-  - [ ] `anon public` → לשמור כ-`NEXT_PUBLIC_SUPABASE_ANON_KEY`
-  - [ ] `service_role` → לשמור כ-`SUPABASE_SERVICE_ROLE_KEY` (סודי!)
+- [ ] [supabase.com](https://supabase.com) → פרויקט חדש (Region: Frankfurt או קרוב)
+- [ ] שמור סיסמת DB במקום בטוח
+- [ ] המתן לסיום provisioning
 
-### 1.3 חיבור CLI לפרויקט
-- [ ] להתחבר ל-Supabase CLI:
-  ```powershell
-  supabase login
-  ```
-- [ ] לשייך את הפרויקט המקומי לפרויקט הענן:
-  ```powershell
-  cd c:\Repos\Kolel
-  supabase link --project-ref <PROJECT_REF>
-  ```
-  > את `PROJECT_REF` מוצאים ב-`Project Settings → General → Reference ID`
+### 1.2 מפתחות API
 
-### 1.4 העלאת הסכמה ל-Cloud
-- [ ] להריץ migrations על ה-DB בענן:
-  ```powershell
-  supabase db push
-  ```
-- [ ] לוודא ב-`Table Editor` שהטבלאות נוצרו:
-  - [ ] `contacts`
-  - [ ] `payment_potentials`
-  - [ ] `donations`
-  - [ ] `donation_plans`
-  - [ ] `status_history`
-  - [ ] `app_admins`
+מ-**Project Settings → API**:
 
-### 1.5 הגדרת אדמין
-- [x] אימייל אדמין נקבע: `turgnr7@gmail.com` (כבר מוגדר ב-migration `202605080001_seed_admin.sql`)
-- [ ] לוודא ב-`Table Editor → app_admins` שהאימייל אכן מופיע אחרי `db push`
-- [ ] ליצור משתמש Auth בענן:
-  - `Authentication → Users → Add user → Create new user`
+- [ ] `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
+- [ ] `anon` `public` → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+### 1.3 סכמה (migrations)
+
+```powershell
+supabase login
+cd c:\Repos\Kolel
+supabase link --project-ref <PROJECT_REF>
+supabase db push
+```
+
+`PROJECT_REF` = **Project Settings → General → Reference ID**
+
+- [ ] ב-**Table Editor** קיימות: `contacts`, `payment_potentials`, `donations`, `donation_plans`, `status_history`, `app_admins`
+
+### 1.4 אדמין
+
+- [x] אימייל ב-migration: `turgnr7@gmail.com` (`202605080001_seed_admin.sql`)
+- [ ] אחרי `db push` — שורה ב-`app_admins`
+- [ ] **Authentication → Users → Add user**:
   - אימייל: `turgnr7@gmail.com`
-  - סיסמה חזקה (שמור במקום בטוח)
-  - לסמן `Auto Confirm User`
+  - סיסמה חזקה
+  - **Auto Confirm User**
 
-### 1.6 הגדרות Auth
-- [ ] ב-`Authentication → URL Configuration`:
-  - [ ] `Site URL` = הכתובת של Netlify (אחרי Deploy)
-  - [ ] `Redirect URLs` = להוסיף את כתובת Netlify
-  > אפשר לחזור לשלב הזה אחרי שיש לך URL מ-Netlify
+### 1.5 Auth URLs (אחרי שיש URL מ-Netlify)
 
-### 1.7 (אופציונלי) Seed Data
-- [ ] רק אם אתה רוצה נתוני דמה בפרודקשן (בד"כ לא):
-  ```powershell
-  supabase db seed --file supabase/seed.sql
-  ```
+- [ ] **Authentication → URL Configuration**:
+  - `Site URL` = `https://<your-site>.netlify.app`
+  - `Redirect URLs`: אותו URL + `http://localhost:3000` (לפיתוח)
 
----
+### 1.6 Seed (לא מומלץ בפרודקשן)
 
-## שלב 2 - Git & GitHub
+רק לניסויים בענן נפרד:
 
-### 2.1 הקמת רפו
-- [ ] לאתחל git ולעשות commit ראשון:
-  ```powershell
-  cd c:\Repos\Kolel
-  git init
-  git add .
-  git commit -m "init: payments tracker mvp"
-  ```
-- [ ] לוודא ש-`.env.local` לא נכנס ל-commit (חייב להיות ב-`.gitignore`)
-- [ ] ליצור רפו ריק ב-GitHub
-- [ ] לחבר ולדחוף:
-  ```powershell
-  git branch -M main
-  git remote add origin <YOUR_GITHUB_REPO_URL>
-  git push -u origin main
-  ```
-
-### 2.2 ענף develop
-- [ ] ליצור ענף develop:
-  ```powershell
-  git checkout -b develop
-  git push -u origin develop
-  ```
-
-### 2.3 הגנת branches (ב-GitHub)
-- [ ] `Settings → Branches → Add rule` עבור `main`:
-  - [ ] Require pull request before merging
-  - [ ] Require status checks to pass
+```powershell
+supabase db seed --file supabase/seed.sql
+```
 
 ---
 
-## שלב 3 - Netlify
+## שלב 2 — פיתוח מקומי מול הענן
 
-### 3.1 חיבור הריפו
-- [ ] להיכנס ל-[app.netlify.com](https://app.netlify.com)
-- [ ] `Add new site → Import an existing project`
-- [ ] לבחור GitHub ולהרשות גישה לרפו
-- [ ] לבחור את רפו `Kolel`
+```powershell
+cd c:\Repos\Kolel\web
+copy .env.local.example .env.local
+```
 
-### 3.2 הגדרות Build
-- [ ] לוודא ש-Netlify מזהה את `netlify.toml` (אמור להיות אוטומטי):
-  - Base directory: `web`
-  - Build command: `npm run build`
-  - Publish directory: `web/.next`
-- [ ] Plugin: `@netlify/plugin-nextjs` (מותקן אוטומטית)
-
-### 3.3 משתני סביבה
-- [ ] `Site settings → Environment variables → Add variable`:
-  - [ ] `NEXT_PUBLIC_SUPABASE_URL` = (מ-Supabase)
-  - [ ] `NEXT_PUBLIC_SUPABASE_ANON_KEY` = (מ-Supabase)
-  - [ ] `SUPABASE_SERVICE_ROLE_KEY` = (מ-Supabase, סודי!)
-- [ ] לוודא שכל המשתנים מסומנים גם ל-Production וגם ל-Deploy previews
-
-### 3.4 הגדרות ענפים
-- [ ] `Site settings → Build & deploy → Branches and deploy contexts`:
-  - [ ] Production branch: `main`
-  - [ ] Branch deploys: `None` (או רק `develop` אם תרצה preview)
-  - [ ] Deploy Previews: `Any pull request against your production branch`
-
-### 3.5 Deploy ראשון
-- [ ] להריץ Deploy ידני ראשון: `Deploys → Trigger deploy → Deploy site`
-- [ ] לעקוב אחרי הלוג עד הצלחה
-- [ ] להעתיק את ה-URL של האתר (`https://<random>.netlify.app`)
-
-### 3.6 חיבור ה-URL חזרה ל-Supabase
-- [ ] לחזור ל-Supabase:
-  - [ ] `Authentication → URL Configuration → Site URL` = ה-URL מ-Netlify
-  - [ ] להוסיף את אותו URL גם ל-`Redirect URLs`
-
-### 3.7 (אופציונלי) דומיין מותאם אישית
-- [ ] אם יש לך דומיין: `Domain settings → Add custom domain`
-- [ ] לעדכן DNS לפי ההוראות של Netlify
-- [ ] לחזור ל-Supabase ולעדכן את ה-Site URL לדומיין החדש
+- [ ] מילוי `.env.local` בערכי הענן (לא `127.0.0.1`)
+- [ ] `npm run dev` → `http://localhost:3000/login` → התחברות מצליחה
+- [ ] `.env.local` **לא** ב-Git (בדוק `.gitignore`)
 
 ---
 
-## שלב 4 - Smoke Test בפרודקשן
+## שלב 3 — Git & GitHub
 
-- [ ] להיכנס ל-URL של האתר
-- [ ] להגיע ל-`/login`
-- [ ] להתחבר עם משתמש האדמין
-- [ ] להגיע ל-`/import` ולייבא איש קשר אחד (CSV או Browser API)
-- [ ] להגיע ל-`/potentials` ולשנות סטטוס לפוטנציאל
-- [ ] להגיע ל-`/payments` ולהזין תשלום חד-פעמי
-- [ ] להגיע ל-`/payments` ולהזין תשלום מחזורי
-- [ ] להגיע ל-`/` (Dashboard) ולוודא ש-KPI מתעדכנים
-- [ ] להיכנס לכרטיס איש קשר ולוודא שמופיעות היסטוריית סטטוסים ותשלומים
+- [ ] רפו ב-GitHub, ענף `main`
+- [ ] `git push -u origin main`
+- [ ] אין צורך בענף `develop` — `main` הוא פרודקשן
 
 ---
 
-## שלב 5 - אבטחה ותחזוקה
+## שלב 4 — Netlify
 
-- [ ] לוודא ש-`.env.local` **לא** ב-Git
-- [ ] לסובב את `SUPABASE_SERVICE_ROLE_KEY` אם נחשף בטעות
-- [ ] להגדיר Backup אוטומטי ב-Supabase (`Database → Backups`)
-- [ ] להגדיר Notifications ב-Netlify על Deploy fail (`Site settings → Build & deploy → Deploy notifications`)
+### 4.1 חיבור
+
+- [ ] [app.netlify.com](https://app.netlify.com) → Import from Git → רפו Kolel
+- [ ] **Production branch:** `main`
+- [ ] Build (מ-`netlify.toml`): base `web`, `npm run build`
+
+### 4.2 משתני סביבה
+
+**Site settings → Environment variables** (Production):
+
+- [ ] `NEXT_PUBLIC_SUPABASE_URL`
+- [ ] `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+(אותם ערכים כמו ב-`.env.local`)
+
+### 4.3 Deploy
+
+- [ ] Deploy ראשון מוצלח
+- [ ] העתק URL: `https://<site>.netlify.app`
+- [ ] עדכן Auth URLs ב-Supabase (שלב 1.5)
+
+### 4.4 (אופציונלי) דומיין מותאם
+
+- [ ] Domain settings → custom domain → עדכן Supabase Site URL
 
 ---
 
-## שלב 6 - מעבר לזרימת עבודה רגילה
+## שלב 5 — Smoke test
 
-מכאן והלאה, לכל פיצ'ר חדש:
+- [ ] מקומי: [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md)
+- [ ] פרודקשן: אותה רשימה מול URL של Netlify
 
-1. `git checkout develop && git pull`
-2. `git checkout -b feature/<name>`
-3. פיתוח ובדיקה לוקאלית
-4. `git push -u origin feature/<name>`
-5. PR ל-`develop` → בדיקה → merge
-6. PR מ-`develop` ל-`main` → merge → Deploy אוטומטי
+---
+
+## שלב 6 — תחזוקה
+
+- [ ] גיבוי אוטומטי: Supabase → Database → Backups
+- [ ] התראות Netlify על כשל deploy
+- [ ] לכל שינוי schema: `supabase db push` ואז `git push` ל-`main`
+
+### זרימת עבודה שוטפת
+
+1. `git pull origin main`
+2. פיתוח ב-`web/`
+3. `npm run typecheck && npm run build`
+4. `git push origin main` → Deploy אוטומטי
 
 ---
 
 ## משאבים
 
-- Supabase Dashboard: https://supabase.com/dashboard
-- Netlify Dashboard: https://app.netlify.com
-- README מקומי: [README.md](README.md)
-- תכנית מערכת: ראה plan ב-`.cursor/plans/`
+- [docs/WORK_PLAN.md](docs/WORK_PLAN.md)
+- [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md)
+- [README.md](README.md)
+- Supabase: https://supabase.com/dashboard
+- Netlify: https://app.netlify.com

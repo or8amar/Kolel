@@ -4,15 +4,20 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AuthGuard } from "@/components/auth-guard";
-import { calculateDashboardMetrics } from "@/lib/dashboard-metrics";
+import { calculateDashboardMetrics, getMonthlyTargetIls } from "@/lib/dashboard-metrics";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { formatPotentialStatus, translateApiError } from "@/lib/labels";
+import { isActivePotentialStatus } from "@/lib/potential-status";
 import { supabase } from "@/lib/supabase/client";
-import type { Donation, DonationPlan, PaymentPotential } from "@/lib/types";
+import type { Donation, PaymentPotential } from "@/lib/types";
+
+type DashboardContact = { createdAt: string };
 
 export default function DashboardPage() {
-  const [potentials, setPotentials] = useState<PaymentPotential[]>([]);
-  const [donations, setDonations] = useState<Donation[]>([]);
-  const [plans, setPlans] = useState<DonationPlan[]>([]);
+  const [contacts, setContacts] = useState<DashboardContact[]>([]);
+  const [potentials, setPotentials] = useState<Pick<PaymentPotential, "id" | "status" | "nextFollowUpAt">[]>([]);
+  const [donations, setDonations] = useState<Pick<Donation, "amount" | "type" | "paidAt">[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -20,36 +25,77 @@ export default function DashboardPage() {
   }, []);
 
   async function loadData() {
-    const [potentialsRes, donationsRes, plansRes] = await Promise.all([
-      supabase.from("payment_potentials").select("*").order("updatedAt", { ascending: false }),
-      supabase.from("donations").select("*").order("paidAt", { ascending: false }),
-      supabase.from("donation_plans").select("*").eq("isActive", true),
+    setLoading(true);
+    const [contactsRes, potentialsRes, donationsRes] = await Promise.all([
+      supabase.from("contacts").select("createdAt"),
+      supabase.from("payment_potentials").select("id, status, nextFollowUpAt"),
+      supabase.from("donations").select("amount, type, paidAt"),
     ]);
 
-    if (potentialsRes.error || donationsRes.error || plansRes.error) {
-      setError(potentialsRes.error?.message ?? donationsRes.error?.message ?? plansRes.error?.message ?? "שגיאה לא ידועה");
+    if (contactsRes.error || potentialsRes.error || donationsRes.error) {
+      setError(
+        translateApiError(
+          contactsRes.error?.message ??
+            potentialsRes.error?.message ??
+            donationsRes.error?.message ??
+            "שגיאה לא ידועה",
+        ),
+      );
+      setLoading(false);
       return;
     }
 
-    setPotentials((potentialsRes.data as PaymentPotential[]) ?? []);
-    setDonations((donationsRes.data as Donation[]) ?? []);
-    setPlans((plansRes.data as DonationPlan[]) ?? []);
+    setContacts((contactsRes.data as DashboardContact[]) ?? []);
+    setPotentials((potentialsRes.data as Pick<PaymentPotential, "id" | "status" | "nextFollowUpAt">[]) ?? []);
+    setDonations((donationsRes.data as Pick<Donation, "amount" | "type" | "paidAt">[]) ?? []);
+    setLoading(false);
   }
 
-  const metrics = useMemo(() => calculateDashboardMetrics(potentials, donations, plans), [potentials, donations, plans]);
-  const needsFollowUp = potentials.filter((p) => p.nextFollowUpAt).slice(0, 8);
+  const metrics = useMemo(
+    () => calculateDashboardMetrics(contacts, potentials, donations),
+    [contacts, potentials, donations],
+  );
+
+  const monthlyTarget = getMonthlyTargetIls();
+  const gapToGoal =
+    monthlyTarget != null ? Math.max(0, round2(monthlyTarget - metrics.monthCollected)) : null;
+
+  const needsFollowUp = potentials
+    .filter((p) => p.nextFollowUpAt && isActivePotentialStatus(p.status))
+    .slice(0, 8);
 
   return (
     <AuthGuard>
       <AppShell>
         <div className="grid gap-4">
+          {loading ? <p className="rounded-lg bg-slate-50 p-4 text-slate-600">טוען נתוני לוח בקרה...</p> : null}
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <Kpi title="כמות פוטנציאלים" value={metrics.potentialsCount} />
-            <Kpi title="משלמים פעילים" value={metrics.activePayersCount} />
-            <Kpi title="דורש מעקב" value={metrics.followUpCount} />
-            <Kpi title="תרומות חודשיות" value={formatCurrency(metrics.monthlyDonations)} />
-            <Kpi title="תרומות שנתיות" value={formatCurrency(metrics.yearlyDonations)} />
-            <Kpi title="סה״כ תרומות" value={formatCurrency(metrics.totalDonations)} />
+            <Kpi title="מאגר אנשי קשר" value={metrics.totalContacts} />
+            <Kpi title="פוטנציאלים פעילים" value={metrics.activePotentialsCount} />
+            <Kpi
+              title="פעילים לפי סטטוס"
+              value={`חדש ${metrics.activeByStatus.new} · פוטנציאל ${metrics.activeByStatus.potential} · גבוה ${metrics.activeByStatus.high}`}
+            />
+            <Kpi title="גבוה" value={metrics.highCount} />
+            <Kpi title="שילמו" value={metrics.paidCount} />
+            <Kpi title="סה״כ נגבה" value={formatCurrency(metrics.totalCollected)} />
+            <Kpi
+              title="חד־פעמי"
+              value={`${metrics.oneTimeCount} תשלומים · ${formatCurrency(metrics.oneTimeAmount)}`}
+            />
+            <Kpi
+              title="מחזורי"
+              value={`${metrics.recurringCount} תשלומים · ${formatCurrency(metrics.recurringAmount)}`}
+            />
+            <Kpi title="גיוס החודש (אנשי קשר חדשים)" value={metrics.monthContactsAdded} />
+            <Kpi title="נגבה החודש" value={formatCurrency(metrics.monthCollected)} />
+            {gapToGoal != null ? (
+              <Kpi
+                title={`פער ליעד חודשי (${formatCurrency(monthlyTarget!)})`}
+                value={formatCurrency(gapToGoal)}
+              />
+            ) : null}
+            <Kpi title="דורש מעקב (7 ימים)" value={metrics.followUpCount} />
           </div>
 
           <div className="rounded-xl border p-4">
@@ -62,7 +108,7 @@ export default function DashboardPage() {
             <ul className="grid gap-2">
               {needsFollowUp.map((item) => (
                 <li key={item.id} className="flex items-center justify-between rounded-lg border p-2 text-sm">
-                  <span>{item.status}</span>
+                  <span>{formatPotentialStatus(item.status)}</span>
                   <span>מעקב: {formatDate(item.nextFollowUpAt)}</span>
                 </li>
               ))}
@@ -84,4 +130,8 @@ function Kpi({ title, value }: { title: string; value: string | number }) {
       <p className="text-2xl font-bold text-slate-900">{value}</p>
     </article>
   );
+}
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
 }
