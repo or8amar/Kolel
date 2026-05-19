@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AuthGuard } from "@/components/auth-guard";
+import { LazyScrollList } from "@/components/lazy-scroll-list";
 import {
   buildManualContact,
   importFromBrowserContacts,
@@ -13,15 +14,23 @@ import {
   parsePastedText,
   parseVcfContacts,
 } from "@/lib/contacts-import";
-import { buildPhoneIndex, findPhoneDuplicate, type ContactPhoneLookup } from "@/lib/duplicate-contacts";
+import type { PhoneDuplicateMatch } from "@/lib/duplicate-contacts";
+import { collectNormalizedPhones } from "@/lib/duplicate-contacts";
+import {
+  addInsertedToPhoneIndex,
+  fetchContactsOverlappingPhones,
+  filterImportBatch,
+  mergePhoneIndex,
+} from "@/lib/import-duplicate-check";
 import { formatContactSource, translateApiError } from "@/lib/labels";
+import { btnSecondary, btnSuccess } from "@/lib/ui";
 import { supabase } from "@/lib/supabase/client";
 import type { ImportedContact } from "@/lib/contacts-import";
 
 const BATCH_SIZE = 12;
 const BATCH_DELAY_MS = 350;
 const SINGLE_ROW_DELAY_MS = 120;
-const EXISTING_PAGE_SIZE = 1000;
+const CHUNK_IMPORT_SIZE = 50;
 const RATE_LIMIT_MAX_RETRIES = 6;
 const RATE_LIMIT_INITIAL_BACKOFF_MS = 1000;
 const RATE_LIMIT_MAX_BACKOFF_MS = 16000;
@@ -169,66 +178,59 @@ export default function ImportContactsPage() {
     }
   }
 
-  async function runImport() {
+  async function runImport(maxCount?: number) {
     if (!parsed.length || running) return;
+    const queue = maxCount ? parsed.slice(0, maxCount) : parsed;
     setRunning(true);
     setError("");
     setSummary(null);
-    setProgress({ done: 0, total: parsed.length });
+    setProgress({ done: 0, total: queue.length });
 
     const errors: string[] = [];
     let imported = 0;
     let skipped = 0;
     let failed = 0;
+    const duplicateDetails: DuplicateSkip[] = [];
+    let phoneIndex = new Map<string, PhoneDuplicateMatch>();
 
     try {
-      const existingKeys = new Set<string>();
-      const existingContacts: ContactPhoneLookup[] = [];
-      for (let from = 0; ; from += EXISTING_PAGE_SIZE) {
-        const { data: page, error: existingError } = await withRateLimitRetry(async () =>
-          await supabase
-            .from("contacts")
-            .select("id, fullName, phones, email")
-            .range(from, from + EXISTING_PAGE_SIZE - 1),
-        );
-        if (existingError) throw new Error(translateApiError(existingError.message ?? "שגיאה בטעינת אנשי קשר קיימים"));
-        const rows = page ?? [];
-        for (const c of rows) {
-          const row = c as ContactPhoneLookup & { email?: string | null };
-          existingContacts.push(row);
-          existingKeys.add(
-            makeContactKey(row.fullName ?? "", row.phones ?? [], row.email ?? null),
-          );
-        }
-        if (rows.length < EXISTING_PAGE_SIZE) break;
-      }
-
-      const phoneIndex = buildPhoneIndex(existingContacts);
-      const duplicateDetails: DuplicateSkip[] = [];
-      const toInsert: ImportedContact[] = [];
-
-      for (const c of parsed) {
-        const phoneDup = findPhoneDuplicate(c.phones, phoneIndex);
-        if (phoneDup) {
-          skipped += 1;
-          duplicateDetails.push({
-            name: phoneDup.fullName,
-            contactId: phoneDup.contactId,
-            phone: phoneDup.matchedPhone,
-          });
-          continue;
-        }
-        if (existingKeys.has(makeContactKey(c.fullName, c.phones, c.email))) {
-          skipped += 1;
-          continue;
-        }
-        toInsert.push(c);
-      }
-
-      for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
-        const batch = toInsert.slice(i, i + BATCH_SIZE);
+      for (let i = 0; i < queue.length; i += BATCH_SIZE) {
+        const batch = queue.slice(i, i + BATCH_SIZE);
         const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-        const payload = batch.map((row) => ({
+
+        const batchPhones = batch.flatMap((row) => collectNormalizedPhones(row.phones));
+        const overlapRes = await withRateLimitRetry(async () => {
+          try {
+            const rows = await fetchContactsOverlappingPhones(batchPhones);
+            return { data: rows, error: null as SupabaseErrorLike | null };
+          } catch (err) {
+            return { data: null, error: { message: (err as Error).message } };
+          }
+        });
+        if (overlapRes.error) {
+          throw new Error(translateApiError(overlapRes.error.message ?? "שגיאה בבדיקת כפילויות"));
+        }
+        phoneIndex = mergePhoneIndex(phoneIndex, overlapRes.data ?? []);
+
+        const { toInsert, skipped: batchSkipped } = filterImportBatch(batch, phoneIndex);
+        for (const dup of batchSkipped) {
+          skipped += 1;
+          if (dup.contactId !== "pending") {
+            duplicateDetails.push({
+              name: dup.fullName,
+              contactId: dup.contactId,
+              phone: dup.matchedPhone,
+            });
+          }
+        }
+
+        if (!toInsert.length) {
+          setProgress({ done: skipped + imported + failed, total: queue.length });
+          if (i + BATCH_SIZE < queue.length) await sleep(BATCH_DELAY_MS);
+          continue;
+        }
+
+        const payload = toInsert.map((row) => ({
           externalContactId: row.externalContactId ?? null,
           fullName: row.fullName,
           phones: row.phones,
@@ -238,11 +240,13 @@ export default function ImportContactsPage() {
 
         const insertedIds = await insertContactsBatch(payload, batchNum, errors);
         if (!insertedIds.length) {
-          failed += batch.length;
-          setProgress({ done: skipped + imported + failed, total: parsed.length });
-          if (i + BATCH_SIZE < toInsert.length) await sleep(BATCH_DELAY_MS);
+          failed += toInsert.length;
+          setProgress({ done: skipped + imported + failed, total: queue.length });
+          if (i + BATCH_SIZE < queue.length) await sleep(BATCH_DELAY_MS);
           continue;
         }
+
+        addInsertedToPhoneIndex(phoneIndex, toInsert, insertedIds);
 
         const potentialsPayload = insertedIds.map((contactId) => ({
           contactId,
@@ -259,23 +263,24 @@ export default function ImportContactsPage() {
         }
 
         imported += insertedIds.length;
-        failed += batch.length - insertedIds.length;
-        setProgress({ done: skipped + imported + failed, total: parsed.length });
+        failed += toInsert.length - insertedIds.length;
+        setProgress({ done: skipped + imported + failed, total: queue.length });
 
-        if (i + BATCH_SIZE < toInsert.length) await sleep(BATCH_DELAY_MS);
+        if (i + BATCH_SIZE < queue.length) await sleep(BATCH_DELAY_MS);
       }
 
       setSummary({ imported, skippedDuplicates: skipped, duplicateDetails, failed, errors });
-      setParsed([]);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setParsed((prev) => (maxCount ? prev.slice(queue.length) : []));
+      if (!maxCount && fileInputRef.current) fileInputRef.current.value = "";
+      if (maxCount && parsed.length <= queue.length && fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } catch (e) {
       setError(translateApiError((e as Error).message));
     } finally {
       setRunning(false);
     }
   }
-
-  const previewRows = useMemo(() => parsed.slice(0, 50), [parsed]);
 
   return (
     <AuthGuard>
@@ -417,40 +422,43 @@ export default function ImportContactsPage() {
 
           {parsed.length > 0 ? (
             <div className="rounded-xl border">
-              <div className="flex items-center justify-between gap-3 border-b p-3">
+              <div className="grid gap-3 border-b p-3">
                 <p className="text-sm text-slate-600">
-                  תצוגה מקדימה: {previewRows.length} מתוך {parsed.length}
+                  התצוגה נטענת בהדרגה בגלילה (25 שורות בכל פעם). בדיקת כפילויות לפי אצוות.
                 </p>
-                <button
-                  onClick={runImport}
-                  disabled={running}
-                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700 disabled:bg-slate-300"
-                >
-                  {running ? "מייבא..." : `ייבא ${parsed.length} אנשי קשר`}
-                </button>
+                <div className="grid gap-2 sm:flex sm:flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => void runImport()}
+                    disabled={running}
+                    className={btnSuccess}
+                  >
+                    {running ? "מייבא..." : `ייבא הכל (${parsed.length})`}
+                  </button>
+                  {parsed.length > CHUNK_IMPORT_SIZE ? (
+                    <button
+                      type="button"
+                      onClick={() => void runImport(CHUNK_IMPORT_SIZE)}
+                      disabled={running}
+                      className={btnSecondary}
+                    >
+                      ייבא {CHUNK_IMPORT_SIZE} ראשונים
+                    </button>
+                  ) : null}
+                </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-3 py-2 text-right font-medium">שם</th>
-                      <th className="px-3 py-2 text-right font-medium">טלפון</th>
-                      <th className="px-3 py-2 text-right font-medium">אימייל</th>
-                      <th className="px-3 py-2 text-right font-medium">מקור</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previewRows.map((row, idx) => (
-                      <tr key={idx} className="border-t">
-                        <td className="px-3 py-2">{row.fullName}</td>
-                        <td className="px-3 py-2 text-slate-600">{row.phones.join(", ") || "-"}</td>
-                        <td className="px-3 py-2 text-slate-600">{row.email ?? "-"}</td>
-                        <td className="px-3 py-2 text-slate-500">{formatContactSource(row.source)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <LazyScrollList
+                items={parsed}
+                getKey={(row, i) => makeContactKey(row.fullName, row.phones, row.email) + String(i)}
+                renderItem={(row) => (
+                  <div className="grid gap-1 px-3 py-3 text-sm md:grid-cols-4 md:gap-2">
+                    <p className="font-medium text-slate-900">{row.fullName}</p>
+                    <p className="text-slate-600">{row.phones.join(", ") || "—"}</p>
+                    <p className="text-slate-600">{row.email ?? "—"}</p>
+                    <p className="text-slate-500">{formatContactSource(row.source)}</p>
+                  </div>
+                )}
+              />
             </div>
           ) : null}
 
